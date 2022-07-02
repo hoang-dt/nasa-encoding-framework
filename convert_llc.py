@@ -13,14 +13,14 @@ from multiprocessing import Process
 
 
 # Form the name of the .raw output file from a list of parameters
-def form_output_file_name(dataset_name, field_name, time_from, time_to, face, depth):
+def form_output_file_name(field_name, time_from, time_to, face, depth):
   long_field_name = (
     field_name + '-'
     + 'face-' + repr(face)
     + '-depth-' + repr(depth)
     + '-time-' + repr(time_from) + '-' + repr(time_to))
   dimensions = (dfx[face], dfy[face], time_to-time_from)
-  output_file = dataset_name + '-' + long_field_name
+  output_file = long_field_name
   return output_file, long_field_name, dimensions
 
 
@@ -76,14 +76,16 @@ if __name__ == '__main__':
     #print(t, time_block, t_to)
     for d in range(0, n_depths):
       for f in range(0, n_faces):
-        output_file, long_field_name, dimensions = form_output_file_name(dataset_name, field_name, t_from, t_to, f, d)
-        # extract_face_across_time(files, t_from, t_to, f, d, output_file)
+        # check if the file has been converted and stored
+        output_file, long_field_name, dimensions = form_output_file_name(field_name, t_from, t_to, f, d)
+        idx2_file_name = dataset_name + '/' + output_file + '.idx2'
+        print(idx2_file_name)
+        if os.path.exists(idx2_file_name):
+          print('found')
+          continue
+        extract_face_across_time(files, t_from, t_to, f, d, output_file + '.raw')
         while len(glob.glob1('./', '*.raw')) >= 8: # do not spawn more than 8 processes
           continue
           sleep(1)
-        # check if the file has been converted and stored
-        idx2_file_name = dataset_name + '/' + output_file + '.id2'
-        if os.path.exists(idx2_file_name):
-          continue
         p = Process(target = convert_to_idx2, args = (output_file, dataset_name, long_field_name, dimensions))
         p.start()
