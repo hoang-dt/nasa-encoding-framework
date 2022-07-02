@@ -87,5 +87,5 @@ if __name__ == '__main__':
         while len(glob.glob1('./', '*.raw')) >= 8: # do not spawn more than 8 processes
           continue
           sleep(1)
-        p = Process(target = convert_to_idx2, args = (output_file, dataset_name, long_field_name, dimensions))
+        p = Process(target = convert_to_idx2, args = (output_file + '.raw', dataset_name, long_field_name, dimensions))
         p.start()
