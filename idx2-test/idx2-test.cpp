@@ -160,9 +160,7 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
     P.DecodeExtent = idx2::extent(Idx2.Dims3); // get the whole volume
   else
     P.DecodeExtent = Input.Extent;
-  printf("decode extent = " idx2_PrStrExt "\n", idx2_PrExt(P.DecodeExtent));
   Output->OutGrid = idx2::GetOutputGrid(Idx2, P);
-  printf("decode grid = " idx2_PrStrGrid "\n", idx2_PrGrid(Output->OutGrid));
 
   // If the output buffer is uninitialized, we allocate it
   idx2::i64 MinBufSize = idx2::SizeOf(Idx2.DType) * idx2::Prod<idx2::i64>(idx2::Dims(Output->OutGrid));
@@ -242,14 +240,11 @@ DecodeMultipleFiles(const std::string& InDir,
       Extent = idx2::BoundingBox(Extent, SortedInputs[J].first.Extent); // accumulate extent
     }
     input Input{ SortedInputs[Begin].first.InFile, Extent };
-    printf("extent " idx2_PrStrExt "\n", idx2_PrExt(Extent));
     output Output;
     idx2_PropagateIfError(DecodeOneFile(InDir, Input, Downsampling3, Accuracy, &Output));
-    printf("output grid " idx2_PrStrGrid "\n", idx2_PrGrid(Output.OutGrid));
 
     /* now distribute the output */
     for (int J = Begin; J < I; ++J) {
-      printf("input extent " idx2_PrStrExt "\n", idx2_PrExt(SortedInputs[J].first.Extent));
       output& OutputJ = (*Outputs)[SortedInputs[J].second];
       GetOutputGrid(InDir, SortedInputs[J].first, Downsampling3, &(OutputJ.OutGrid));
       OutputJ.DataType = Output.DataType;
@@ -265,20 +260,6 @@ DecodeMultipleFiles(const std::string& InDir,
       idx2::volume FromV = idx2::volume(Output.OutBuffer, idx2::Dims(FromE), Output.DataType);
       idx2::extent ToE   = idx2::Relative(OutputJ.OutGrid, Output.OutGrid);
       idx2::volume ToV   = idx2::volume(OutputJ.OutBuffer, idx2::Dims(ToE), OutputJ.DataType);
-      printf("from grid " idx2_PrStrGrid "\n", idx2_PrGrid(Output.OutGrid));
-      printf("to grid " idx2_PrStrGrid "\n", idx2_PrGrid(OutputJ.OutGrid));
-      printf("from extent " idx2_PrStrExt "\n", idx2_PrExt(FromE));
-      printf("to extent " idx2_PrStrExt "\n", idx2_PrExt(ToE));
-      printf("from volume " idx2_PrStrV3i "\n", idx2_PrV3i(Dims(FromV)));
-      printf("to extent " idx2_PrStrExt "\n", idx2_PrV3i(Dims(ToV)));
-      idx2::v3i D3 = Dims(FromE);
-      idx2::v3i F3 = From(FromE);
-      idx2_Assert(D3.X > 0 && D3.Y > 0 && D3.Z > 0);
-      idx2_Assert(F3.X > 0 && F3.Y > 0 && F3.Z > 0);
-      D3 = Dims(ToE);
-      F3 = From(ToV);
-      idx2_Assert(D3.X > 0 && D3.Y > 0 && D3.Z > 0);
-      idx2_Assert(F3.X > 0 && F3.Y > 0 && F3.Z > 0);
       idx2::CopyExtentExtent<float, float>(FromE, FromV, ToE, &ToV); // TODO: hard-coding the types
     }
     Begin = I;
@@ -550,10 +531,7 @@ ExecuteQuery(const query_info& QueryInfo,
         int Time = QueryInfo.TimeRange.Begin + T;
         int Index = T * TimeStride + F * FaceStride + D * DepthStride;
         const spatial_range& R = QueryInfo.SpatialRanges[F];
-        if (Depth == 0 && R.Face == 3)
-          int Stop = 0;
         Inputs[Index].Extent = idx2::extent(idx2::v3i(R.XRange.Begin, R.YRange.Begin, Time), idx2::v3i(R.XRange.End - R.XRange.Begin, R.YRange.End - R.YRange.Begin, 1));
-        printf("EXTENT = " idx2_PrStrExt "\n", idx2_PrExt(Inputs[Index].Extent));
         int TimeBegin = Time / QueryInfo.TimeGroup;
         int TimeEnd = TimeBegin + QueryInfo.TimeGroup;
         Inputs[Index].InFile.resize(256);
