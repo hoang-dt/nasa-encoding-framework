@@ -5,6 +5,7 @@
 #include <array>
 #include <atomic>
 #include <cassert>
+#include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
@@ -144,6 +145,8 @@ idx2::volume
 CollapseByInterpolation(const idx2::volume& Vol, idx2::dimension D, double T);
 
 std::atomic<int> NumThreads = 0;
+const auto MaxThreads = std::thread::hardware_concurrency();
+std::vector<std::thread> Workers;
 
 idx2::error<idx2::idx2_err_code>
 DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converted_files" (an absolute or relative path that leads to the parent dir of the .idx2 file, can also simply be ".")
@@ -199,8 +202,6 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   idx2::SetFrom(&Output->OutGrid, From3);
   idx2::SetDims(&Output->OutGrid, Dims3);
   Output->OutBuffer = Vol.Buffer;
-
-  --NumThreads;
 
   return idx2_Error(idx2::idx2_err_code::NoError); // make sure to check for return error at call site
 }
@@ -263,9 +264,59 @@ GetOutputGrid(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
 }
 
 
-void RunTask()
+idx2::error<idx2::idx2_err_code>
+RunQueryTask(const std::string& InDir,
+             const std::vector<std::pair<input, int>>& SortedInputs,
+             int Begin,
+             int I,
+             std::vector<output>* Outputs)
 {
+  /* construct input and output for a single query */
+  idx2::extent Extent = SortedInputs[Begin].first.Extent;
+  for (int J = Begin; J < I; ++J) {
+    Extent = idx2::BoundingBox(Extent, SortedInputs[J].first.Extent); // accumulate extent
+  }
+  input Input;
+  Input.InFile = SortedInputs[Begin].first.InFile;
+  Input.Extent = Extent;
+  Input.Accuracy = SortedInputs[Begin].first.Accuracy;
+  Input.Downsampling3 = SortedInputs[Begin].first.Downsampling3;
+  output Output;
+  idx2::timer Timer;
+  idx2::StartTimer(&Timer);
+  idx2_PropagateIfError(DecodeOneFile(InDir, Input, &Output));
+  auto Seconds = idx2::Seconds(idx2::ElapsedTime(&Timer));
+  printf("**** Reading file %s\n", Input.InFile.data());
+  printf("**** Time taken to decode one file = %f s\n", Seconds);
 
+  /* now distribute the output */
+  for (int J = Begin; J < I; ++J) {
+    output& OutputJ = (*Outputs)[SortedInputs[J].second];
+    GetOutputGrid(InDir, SortedInputs[J].first, &(OutputJ.OutGrid));
+    OutputJ.DataType = Output.DataType;
+
+    idx2::i64 MinBufSize = idx2::SizeOf(Output.DataType) * idx2::Prod<idx2::i64>(idx2::Dims(OutputJ.OutGrid));
+    if (!OutputJ.OutBuffer && idx2::Dims(OutputJ.OutGrid) > 0)
+      idx2::AllocBuf(&OutputJ.OutBuffer, MinBufSize);
+    // If the output buffer is preallocated by the user, we check if it is too small
+    // TODO: just automatically reallocate if necessary
+    idx2_ReturnErrorIf(OutputJ.OutBuffer.Bytes < MinBufSize, idx2::err_code::SizeTooSmall, "Output buffer is too small\n");
+
+    idx2::extent FromE = idx2::Relative(Output.OutGrid, Output.OutGrid);
+    idx2::volume FromV = idx2::volume(Output.OutBuffer, idx2::Dims(FromE), Output.DataType);
+    idx2::extent ToE   = idx2::Relative(OutputJ.OutGrid, Output.OutGrid);
+    idx2::volume ToV   = idx2::volume(OutputJ.OutBuffer, idx2::Dims(ToE), OutputJ.DataType);
+    idx2::CopyExtentExtent<float, float>(FromE, FromV, ToE, &ToV); // TODO: hard-coding the types
+  }
+
+  -- NumThreads;
+  printf("done task\n");
+}
+
+
+void DummyTask()
+{
+  --NumThreads;
 }
 
 
@@ -278,7 +329,7 @@ DecodeMultipleFiles(const std::string& InDir,
                     const std::vector<input>& Inputs,
                     std::vector<output>* Outputs)
 {
-
+  using namespace std::chrono_literals;
   idx2_Assert(!Inputs.empty(), "Input cannot be empty\n");
   idx2_Assert(Inputs.size() == Outputs->size());
 
@@ -296,50 +347,19 @@ DecodeMultipleFiles(const std::string& InDir,
     if (I < SortedInputs.size() && SortedInputs[I].first.InFile == SortedInputs[I - 1].first.InFile) {
       continue;
     }
-
-    /* construct input and output for a single query */
-    idx2::extent Extent = SortedInputs[Begin].first.Extent;
-    for (int J = Begin; J < I; ++J) {
-      Extent = idx2::BoundingBox(Extent, SortedInputs[J].first.Extent); // accumulate extent
+    while (NumThreads >= MaxThreads) {
+      std::this_thread::sleep_for(100ms);
     }
-    input Input;
-    Input.InFile = SortedInputs[Begin].first.InFile;
-    Input.Extent = Extent;
-    Input.Accuracy = SortedInputs[Begin].first.Accuracy;
-    Input.Downsampling3 = SortedInputs[Begin].first.Downsampling3;
-    output Output;
-    idx2::timer Timer;
-    idx2::StartTimer(&Timer);
-    //idx2_PropagateIfError(DecodeOneFile(InDir, Input, &Output));
-    //if () {
+    ++NumThreads;
+    std::thread (RunQueryTask, InDir, SortedInputs, Begin, I, Outputs).detach();
+    //std::thread (DummyTask).detach();
 
-    //}
-    auto Seconds = idx2::Seconds(idx2::ElapsedTime(&Timer));
-    printf("**** Reading file %s\n", Input.InFile.data());
-    printf("**** Time taken to decode one file = %f s\n", Seconds);
-
-    /* now distribute the output */
-    for (int J = Begin; J < I; ++J) {
-      output& OutputJ = (*Outputs)[SortedInputs[J].second];
-      GetOutputGrid(InDir, SortedInputs[J].first, &(OutputJ.OutGrid));
-      OutputJ.DataType = Output.DataType;
-
-      idx2::i64 MinBufSize = idx2::SizeOf(Output.DataType) * idx2::Prod<idx2::i64>(idx2::Dims(OutputJ.OutGrid));
-      if (!OutputJ.OutBuffer && idx2::Dims(OutputJ.OutGrid) > 0)
-        idx2::AllocBuf(&OutputJ.OutBuffer, MinBufSize);
-      // If the output buffer is preallocated by the user, we check if it is too small
-      // TODO: just automatically reallocate if necessary
-      idx2_ReturnErrorIf(OutputJ.OutBuffer.Bytes < MinBufSize, idx2::err_code::SizeTooSmall, "Output buffer is too small\n");
-
-      idx2::extent FromE = idx2::Relative(Output.OutGrid, Output.OutGrid);
-      idx2::volume FromV = idx2::volume(Output.OutBuffer, idx2::Dims(FromE), Output.DataType);
-      idx2::extent ToE   = idx2::Relative(OutputJ.OutGrid, Output.OutGrid);
-      idx2::volume ToV   = idx2::volume(OutputJ.OutBuffer, idx2::Dims(ToE), OutputJ.DataType);
-      idx2::CopyExtentExtent<float, float>(FromE, FromV, ToE, &ToV); // TODO: hard-coding the types
-    }
     Begin = I;
   }
 
+  while (NumThreads > 0) {
+    std::this_thread::sleep_for(100ms);
+  }
 
   return idx2_Error(idx2::idx2_err_code::NoError);
 }
@@ -683,7 +703,7 @@ VerticalSlicingExample()
     /* write the output buffers to files (note that faces 3 and 4 are rotated) */
     for (int I = 0; I < Outputs.size(); ++I) {
       char FileName[256];
-      sprintf(FileName, "face-%d-depth-%2d", OutputsMetadata[I].Face, OutputsMetadata[I].Depth);
+      sprintf(FileName, "face-%d-depth-%d", OutputsMetadata[I].Face, OutputsMetadata[I].Depth);
       idx2::WriteBuffer(FileName, Outputs[I].OutBuffer);
     }
   }
@@ -692,34 +712,34 @@ VerticalSlicingExample()
   Outputs.clear();
   OutputsMetadata.clear();
 
-  { /* Now we do vertical slicing across 32 time steps, at X = 1000 on face 3 only
-    * +--------+ +--------+ +---|----+ +--------+
-    * |        | |        | |   |    | |        |
-    * |        | |        | |   |    | |        |
-    * |        | |        | |   |    | |        |
-    * |        | |        | |   |    | |        |
-    * |        | |        | |   |    | |        |
-    * |        | |        | |   |    | |        |
-    * |        | |        | |   |    | |        |
-    * |        | |        | |   |    | |        |
-    * |        | |        | |   |    | |        |
-    * +--------+ +--------+ +---|----+ +--------+
-	*/
-    QueryInfo.SetTimeRange(0, 32);
-    std::array<int, 4> Faces = { 3 }; // all the "lat-lon" faces
-    int SlicePosition = 1000;
-    for (int F = 0; F < Faces.size(); ++F) {
-      if (Faces[F] < 2)
-        QueryInfo.AddFaceSlice(Faces[F], slice_type::AlongY, SlicePosition);
-      else if (Faces[F] > 2) // for faces 3 and 4, we need to "rotate" the slice
-        QueryInfo.AddFaceSlice(Faces[F], slice_type::RotatedAlongY, SlicePosition);
-    }
-    auto Result = ExecuteQuery(QueryInfo, &Outputs, &OutputsMetadata);
-    if (!Result) {
-      fprintf(stderr, "%s\n", ToString(Result));
-      return Result;
-    }
-  }
+ // { /* Now we do vertical slicing across 32 time steps, at X = 1000 on face 3 only
+ //   * +--------+ +--------+ +---|----+ +--------+
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * +--------+ +--------+ +---|----+ +--------+
+	//*/
+ //   QueryInfo.SetTimeRange(0, 32);
+ //   std::array<int, 4> Faces = { 3 }; // all the "lat-lon" faces
+ //   int SlicePosition = 1000;
+ //   for (int F = 0; F < Faces.size(); ++F) {
+ //     if (Faces[F] < 2)
+ //       QueryInfo.AddFaceSlice(Faces[F], slice_type::AlongY, SlicePosition);
+ //     else if (Faces[F] > 2) // for faces 3 and 4, we need to "rotate" the slice
+ //       QueryInfo.AddFaceSlice(Faces[F], slice_type::RotatedAlongY, SlicePosition);
+ //   }
+ //   auto Result = ExecuteQuery(QueryInfo, &Outputs, &OutputsMetadata);
+ //   if (!Result) {
+ //     fprintf(stderr, "%s\n", ToString(Result));
+ //     return Result;
+ //   }
+ // }
 
   return idx2_Error(idx2::err_code::NoError);
 }

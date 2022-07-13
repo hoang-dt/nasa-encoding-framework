@@ -37,8 +37,7 @@ def extract_face_across_time(files, time_from, time_to, face, depth, output_file
       with open(files[t], "rb") as f:
         f.seek(skip_bytes)
         buf = f.read(face_bytes)
-        dt = np.dtype(float)
-        dt = dt.newbyteorder('>')
+        dt = np.dtype('>f')        
         np_array_be = np.frombuffer(buf, dtype=dt)
         np_array_le = np_array_be.byteswap()
         g.write(np_array_le)
