@@ -173,7 +173,55 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   idx2_PropagateIfError(idx2::Decode(&Idx2, P, &Output->OutBuffer)); // the output is stored in OutBuffer
   Output->DataType = Idx2.DType;
 
+  // If the query is a slice but we return 2 slices, collapse them by linear interpolation
+  idx2::volume Vol(Output->OutBuffer, idx2::Dims(Output->OutGrid), Output->DataType);
+  idx2::grid OutGrid = Output->OutGrid;
+  idx2::v3i From3 = idx2::From(Output->OutGrid);
+  idx2::v3i Dims3 = idx2::Dims(Output->OutGrid);
+  for (int D = 2; D >= 0; --D) {
+    if (idx2::Dims(P.DecodeExtent)[D] == 1 && idx2::Dims(Output->OutGrid)[D] == 2) {
+      double T = double(idx2::Frst(P.DecodeExtent)[D] - idx2::Frst(Output->OutGrid)[D]) / (idx2::Last(Output->OutGrid)[D] - idx2::Frst(Output->OutGrid)[D]);
+      idx2_Assert(T >= 0 && T <= 1);
+      Vol = CollapseByInterpolation(Vol, idx2::dimension(D), T);
+      From3[D] = idx2::From(P.DecodeExtent)[D];
+      Dims3[D] = 1;
+    }
+  }
+  idx2::SetFrom(&Output->OutGrid, From3);
+  idx2::SetDims(&Output->OutGrid, Dims3);
+  Output->OutBuffer = Vol.Buffer;
+
   return idx2_Error(idx2::idx2_err_code::NoError); // make sure to check for return error at call site
+}
+
+
+/* "Collapse" a dimension of a volume (from 2 to 1) by linear interpolation */
+idx2::volume
+CollapseByInterpolation(const idx2::volume& Vol, idx2::dimension D, double T)
+{
+  idx2_Assert(T >= 0 && T <= 1);
+  idx2_Assert(idx2::Dims(Vol)[D] == 2);
+
+  idx2::extent E = idx2::extent(Vol);
+  idx2::extent E1 = idx2::Slab(E, D, 1);
+  idx2::extent E2 = idx2::Slab(E, D, -1);
+  idx2_Assert(idx2::Dims(E1) == idx2::Dims(E2));
+  idx2::volume OutVol(idx2::Dims(E1), Vol.Type);
+
+  // Loop through the volume with E1 and E2
+  idx2::v3i D3 = idx2::Dims(E1);
+  for (idx2::v3i P = idx2::v3i(0); P.Z < D3.Z; ++P.Z) {
+    for (P.Y = 0; P.Y < D3.Y; ++P.Y) {
+      for (P.X = 0, P.X < D3.X; ++P.X) {
+        double V1 = Vol.At<idx2::float32>(E1, P); // TODO: not general
+        double V2 = Vol.At<idx2::float32>(E2, P);
+        double V = V1 * T + V2 * (1 - T);
+        OutVol.At<idx2::float32>(P) = V;
+      }
+    }
+  }
+
+  return OutVol;
 }
 
 
@@ -570,18 +618,70 @@ VerticalSlicingExample()
   std::vector<output> Outputs;
   std::vector<output_metadata> OutputsMetadata;
 
-  std::array<int, 4> Faces = { 0, 1, 3, 4 }; // all the "lat-lon" faces
-  int SlicePosition = 3000; // Y coordinate between [0, 6479]
-  for (int I = 0; I < Faces.size(); ++I) {
-    if (Faces[I] < 2)
-      QueryInfo.AddFaceSlice(Faces[I], slice_type::AlongX, SlicePosition);
-    else if (Faces[I] > 2) // for faces 3 and 4, we need to "rotate" the slice
-      QueryInfo.AddFaceSlice(Faces[I], slice_type::RotatedAlongX, SlicePosition);
-  }
-  auto Result = ExecuteQuery(QueryInfo, &Outputs, &OutputsMetadata);
-  if (!Result) {
-    fprintf(stderr, "%s\n", ToString(Result));                                                   \
+  { /* We first do vertical slicing at time = 16 and at Y = 3000 that will cut across the four lat-lon faces
+    * +--------+ +--------+ +--------+ +--------+
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * --------------------------------------------->
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * +--------+ +--------+ +--------+ +--------+
+    */
+    std::array<int, 4> Faces = { 0, 1, 3, 4 }; // all the "lat-lon" faces
+    int SlicePosition = 3000;
+    for (int F = 0; F < Faces.size(); ++F) {
+      if (Faces[F] < 2)
+        QueryInfo.AddFaceSlice(Faces[F], slice_type::AlongX, SlicePosition);
+      else if (Faces[F] > 2) // for faces 3 and 4, we need to "rotate" the slice
+        QueryInfo.AddFaceSlice(Faces[F], slice_type::RotatedAlongX, SlicePosition);
+    }
+    auto Result = ExecuteQuery(QueryInfo, &Outputs, &OutputsMetadata);
+    if (!Result) {
+      fprintf(stderr, "%s\n", ToString(Result));                                                   \
       return Result;
+    }
+
+    // since the order of the output buffers is TimeDepthFace, if we copy the output buffers into
+    // a single big buffer (with potential rotation for faces 3 and 4), we obtain a buffer that
+    // represent the whole vertical slice, and thus can be visualized
+
+  }
+
+  /* Deallocate the output memory */
+  Outputs.clear();
+  OutputsMetadata.clear();
+
+  { /* Now we do vertical slicing across 32 time steps, at X = 1000 on face 3 only
+    * +--------+ +--------+ +---|----+ +--------+
+    * |        | |        | |   |    | |        |
+    * |        | |        | |   |    | |        |
+    * |        | |        | |   |    | |        |
+    * |        | |        | |   |    | |        |
+    * |        | |        | |   |    | |        |
+    * |        | |        | |   |    | |        |
+    * |        | |        | |   |    | |        |
+    * |        | |        | |   |    | |        |
+    * |        | |        | |   |    | |        |
+    * +--------+ +--------+ +---|----+ +--------+
+	*/
+    QueryInfo.SetTimeRange(0, 32);
+    std::array<int, 4> Faces = { 3 }; // all the "lat-lon" faces
+    int SlicePosition = 1000;
+    for (int F = 0; F < Faces.size(); ++F) {
+      if (Faces[F] < 2)
+        QueryInfo.AddFaceSlice(Faces[F], slice_type::AlongY, SlicePosition);
+      else if (Faces[F] > 2) // for faces 3 and 4, we need to "rotate" the slice
+        QueryInfo.AddFaceSlice(Faces[F], slice_type::RotatedAlongY, SlicePosition);
+    }
+    auto Result = ExecuteQuery(QueryInfo, &Outputs, &OutputsMetadata);
+    if (!Result) {
+      fprintf(stderr, "%s\n", ToString(Result));
+      return Result;
+    }
   }
 
   return idx2_Error(idx2::err_code::NoError);

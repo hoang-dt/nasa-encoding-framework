@@ -7044,12 +7044,15 @@ struct volume
   buffer Buffer = {};
   u64 Dims = 0;
   dtype Type = dtype::__Invalid__;
+
   volume();
   volume(const buffer& Buf, const v3i& Dims3, dtype TypeIn);
   volume(const v3i& Dims3, dtype TypeIn, allocator* Alloc = &Mallocator());
+
   template <typename t> volume(const t* Ptr, i64 Size);
   template <typename t> volume(const t* Ptr, const v3i& Dims3);
   template <typename t> explicit volume(const buffer_t<t>& Buf);
+
   template <typename t> t& At(const v3i& P) const;
   template <typename t> t& At(const v3i& From3, const v3i& Strd3, const v3i& P) const;
   template <typename t> t& At(const extent& Ext, const v3i& P) const;
@@ -14782,7 +14785,7 @@ typedef struct SExpr {
         bool b;
         int i;
         float f;
-        
+
         // For strings as well as IDs
         SExprString s;
 
@@ -14804,7 +14807,7 @@ typedef enum SExprResultType {
 
 typedef struct SExprResult {
     SExprResultType type;
-    
+
     union
     {
         SExpr* expr;
@@ -14929,7 +14932,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
         } else if(SExprStringEqual(parser->src, &s, "false")) {
             static SExpr sfalse = {SE_BOOL};
             sfalse.b = false;
-            
+
             return &sfalse;
         }
 
@@ -14964,7 +14967,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
             SExpr* expr = SExprAlloc(parser, SE_FLOAT);
             expr->f = (float)strtod(buf, NULL);
             return expr;
-        }    
+        }
 
         SExpr* expr = SExprAlloc(parser, SE_INT);
         expr->i = strtol(buf, NULL, 10);
@@ -15009,7 +15012,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
 
         if(parser->last == ')' || parser->last == ']' || parser->last == '}') {
             parser->last = SExprGetChar(parser);
-            
+
             static SExpr nil = {SE_NIL};
             return &nil;
         }
@@ -15032,7 +15035,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
 				tail = elem;
             }
 
-			while(parser->last && isspace(parser->last)) {		
+			while(parser->last && isspace(parser->last)) {
 				if(parser->last == '\n') {
 					parser->lineNumber++;
 				}
@@ -18660,9 +18663,9 @@ typedef enum {
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means default, which is controlled by ZSTD_CLEVEL_DEFAULT.
                               * Note 1 : it's possible to pass a negative compression level.
-                              * Note 2 : setting a level does not automatically set all other compression parameters 
-                              *   to default. Setting this will however eventually dynamically impact the compression 
-                              *   parameters which have not been manually set. The manually set 
+                              * Note 2 : setting a level does not automatically set all other compression parameters
+                              *   to default. Setting this will however eventually dynamically impact the compression
+                              *   parameters which have not been manually set. The manually set
                               *   ones will 'stick'. */
     /* Advanced compression parameters :
      * It's possible to pin down compression parameters to some specific values.
