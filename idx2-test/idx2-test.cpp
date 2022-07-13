@@ -136,6 +136,9 @@ struct output
 *   - Pick one of the two returned slices
 *   - Interpolate between the two returned slices
 */
+idx2::volume
+CollapseByInterpolation(const idx2::volume& Vol, idx2::dimension D, double T);
+
 idx2::error<idx2::idx2_err_code>
 DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converted_files" (an absolute or relative path that leads to the parent dir of the .idx2 file, can also simply be ".")
               const input& Input, // see struct input above
@@ -154,7 +157,9 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   idx2_PropagateIfError(Init(&Idx2, P));
 
   // Next, we compute the output grid
-  P.DownsamplingFactor3 = Downsampling3;
+  //P.DownsamplingFactor3 = Downsampling3;
+  Idx2.DownsamplingFactor3 = Downsampling3; // TODO: this should be in P instead
+  //Idx2.Accuracy = Accuracy;
   P.DecodeAccuracy = Accuracy;
   if (idx2::Dims(Input.Extent) == idx2::v3i(0))
     P.DecodeExtent = idx2::extent(Idx2.Dims3); // get the whole volume
@@ -190,6 +195,7 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   idx2::SetFrom(&Output->OutGrid, From3);
   idx2::SetDims(&Output->OutGrid, Dims3);
   Output->OutBuffer = Vol.Buffer;
+  printf("%lld\n", Vol.Buffer.Bytes);
 
   return idx2_Error(idx2::idx2_err_code::NoError); // make sure to check for return error at call site
 }
@@ -212,7 +218,7 @@ CollapseByInterpolation(const idx2::volume& Vol, idx2::dimension D, double T)
   idx2::v3i D3 = idx2::Dims(E1);
   for (idx2::v3i P = idx2::v3i(0); P.Z < D3.Z; ++P.Z) {
     for (P.Y = 0; P.Y < D3.Y; ++P.Y) {
-      for (P.X = 0, P.X < D3.X; ++P.X) {
+      for (P.X = 0; P.X < D3.X; ++P.X) {
         double V1 = Vol.At<idx2::float32>(E1, P); // TODO: not general
         double V2 = Vol.At<idx2::float32>(E2, P);
         double V = V1 * T + V2 * (1 - T);
@@ -612,7 +618,7 @@ VerticalSlicingExample()
   QueryInfo.SetDepthRange(0, 90);
   QueryInfo.SetTimeRange(16, 17);
   QueryInfo.SetOrder(order::TimeDepthFace);
-  QueryInfo.SetDownsamplingFactor(0, 0, 0);
+  QueryInfo.SetDownsamplingFactor(0, 2, 2);
   QueryInfo.SetAccuracy(0.01);
 
   std::vector<output> Outputs;

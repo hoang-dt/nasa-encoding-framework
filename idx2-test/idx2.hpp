@@ -7044,15 +7044,12 @@ struct volume
   buffer Buffer = {};
   u64 Dims = 0;
   dtype Type = dtype::__Invalid__;
-
   volume();
   volume(const buffer& Buf, const v3i& Dims3, dtype TypeIn);
   volume(const v3i& Dims3, dtype TypeIn, allocator* Alloc = &Mallocator());
-
   template <typename t> volume(const t* Ptr, i64 Size);
   template <typename t> volume(const t* Ptr, const v3i& Dims3);
   template <typename t> explicit volume(const buffer_t<t>& Buf);
-
   template <typename t> t& At(const v3i& P) const;
   template <typename t> t& At(const v3i& From3, const v3i& Strd3, const v3i& P) const;
   template <typename t> t& At(const extent& Ext, const v3i& P) const;
@@ -43248,31 +43245,19 @@ Dealloc(idx2_file* Idx2)
   Dealloc(&Idx2->RdoLevels);
 }
 
-// TODO: what if the input extent is too big (bigger than dims)?
-// TODO: need to handle the case where the extent falls between the stride
+// TODO: handle the case where the query extent is larger than the domain itself
 grid
 GetGrid(const idx2_file& Idx2, const extent& Ext)
 {
+  auto CroppedExt = Crop(Ext, extent(Idx2.Dims3));
   v3i Strd3(1); // start with stride (1, 1, 1)
   idx2_For (int, D, 0, 3)
     Strd3[D] <<= Idx2.DownsamplingFactor3[D];
 
-  v3i First3 = From(Ext);
-  v3i Last3 = Last(Ext);
-  //v3i First3 = From(Ext) - (Strd3 - 1);
-  //v3i Last3 = Last(Ext) + (Strd3 - 1);
-  //extent ExtCropped = Crop(extent(First3, Last3 - First3 + 1), extent(Dims3));
-  //First3 = From(ExtCropped);
-  //Last3 = Last(ExtCropped);
-  First3 = ((First3 + Strd3 - 1) / Strd3) * Strd3;
-  Last3 = (Last3 / Strd3) * Strd3;
-  //if (First3.X > Last3.X)
-  //  Swap(&First3.X, &Last3.X);
-  //if (First3.Y > Last3.Y)
-  //  Swap(&First3.Y, &Last3.Y);
-  //if (First3.Z > Last3.Z)
-  //  Swap(&First3.Z, &Last3.Z);
-  //v3i Dims3 = (Last3 - First3) / Strd3 + 1;
+  v3i First3 = From(CroppedExt);
+  v3i Last3 = Last(CroppedExt);
+  Last3 = ((Last3 + Strd3 - 1) / Strd3) * Strd3; // move last to the right
+  First3 = (First3 / Strd3) * Strd3; // move first to the left
 
   return grid(First3, (Last3 - First3) / Strd3 + 1, Strd3);
 }
@@ -44372,7 +44357,7 @@ Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf)
   const int BrickBytes = Prod(Idx2.BrickDimsExt3) * sizeof(f64);
   BrickAlloc_ = free_list_allocator(BrickBytes);
   // TODO: move the decode_data into idx2_file itself
-  idx2_RAII(decode_data, D, Init(&D, &BrickAlloc_));
+  idx2_RAII(decode_data, D, Init(&D, &Mallocator()));
   //  D.QualityLevel = Dw->GetQuality();
   f64 Accuracy = Max(Idx2.Accuracy, P.DecodeAccuracy);
   //  i64 CountZeroes = 0;
