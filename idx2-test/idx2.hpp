@@ -9435,6 +9435,12 @@ struct decode_data
   int QualityLevel = -1;
   int EffIter = 0;
   u64 LastTile = 0;
+
+  u64 BytesRdos_ = 0;
+  u64 DecodeIOTime_ = 0;
+  u64 BytesExps_ = 0;
+  u64 BytesData_ = 0;
+  u64 DataMovementTime_ = 0;
 };
 
 /* ---------------------- FUNCTIONS ----------------------*/
@@ -14782,7 +14788,7 @@ typedef struct SExpr {
         bool b;
         int i;
         float f;
-
+        
         // For strings as well as IDs
         SExprString s;
 
@@ -14804,7 +14810,7 @@ typedef enum SExprResultType {
 
 typedef struct SExprResult {
     SExprResultType type;
-
+    
     union
     {
         SExpr* expr;
@@ -14929,7 +14935,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
         } else if(SExprStringEqual(parser->src, &s, "false")) {
             static SExpr sfalse = {SE_BOOL};
             sfalse.b = false;
-
+            
             return &sfalse;
         }
 
@@ -14964,7 +14970,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
             SExpr* expr = SExprAlloc(parser, SE_FLOAT);
             expr->f = (float)strtod(buf, NULL);
             return expr;
-        }
+        }    
 
         SExpr* expr = SExprAlloc(parser, SE_INT);
         expr->i = strtol(buf, NULL, 10);
@@ -15009,7 +15015,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
 
         if(parser->last == ')' || parser->last == ']' || parser->last == '}') {
             parser->last = SExprGetChar(parser);
-
+            
             static SExpr nil = {SE_NIL};
             return &nil;
         }
@@ -15032,7 +15038,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
 				tail = elem;
             }
 
-			while(parser->last && isspace(parser->last)) {
+			while(parser->last && isspace(parser->last)) {		
 				if(parser->last == '\n') {
 					parser->lineNumber++;
 				}
@@ -18660,9 +18666,9 @@ typedef enum {
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means default, which is controlled by ZSTD_CLEVEL_DEFAULT.
                               * Note 1 : it's possible to pass a negative compression level.
-                              * Note 2 : setting a level does not automatically set all other compression parameters
-                              *   to default. Setting this will however eventually dynamically impact the compression
-                              *   parameters which have not been manually set. The manually set
+                              * Note 2 : setting a level does not automatically set all other compression parameters 
+                              *   to default. Setting this will however eventually dynamically impact the compression 
+                              *   parameters which have not been manually set. The manually set 
                               *   ones will 'stick'. */
     /* Advanced compression parameters :
      * It's possible to pin down compression parameters to some specific values.
@@ -43703,12 +43709,6 @@ Convolve(const c& F, const c& G, c* H)
 namespace idx2
 {
 
-static u64 BytesRdos_ = 0;
-static u64 DecodeIOTime_ = 0;
-static u64 BytesExps_ = 0;
-static u64 BytesData_ = 0;
-static u64 DataMovementTime_ = 0;
-
 void
 Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf);
 
@@ -43876,8 +43876,8 @@ ReadFileExponents(decode_data* D,
   Rewind(&D->ChunkEMaxSzsStream);
   GrowToAccomodate(&D->ChunkEMaxSzsStream, S - Size(D->ChunkEMaxSzsStream));
   ReadBackwardBuffer(Fp, &D->ChunkEMaxSzsStream.Stream, S);
-  BytesExps_ += sizeof(int) + S;
-  DecodeIOTime_ += ElapsedTime(&IOTimer);
+  D->BytesExps_ += sizeof(int) + S;
+  D->DecodeIOTime_ += ElapsedTime(&IOTimer);
   InitRead(&D->ChunkEMaxSzsStream, D->ChunkEMaxSzsStream.Stream);
   file_exp_cache FileExpCache;
   Reserve(&FileExpCache.ChunkExpSzs, S);
@@ -43903,13 +43903,13 @@ ReadFileRdos(const idx2_file& Idx2,
   int NumChunks = 0;
   i64 Sz = idx2_FTell(Fp) - sizeof(NumChunks);
   ReadBackwardPOD(Fp, &NumChunks);
-  BytesRdos_ += sizeof(NumChunks);
+  //BytesRdos_ += sizeof(NumChunks);
   file_rdo_cache FileRdoCache;
   Resize(&FileRdoCache.TileRdoCaches, NumChunks);
   idx2_RAII(buffer, CompresBuf, AllocBuf(&CompresBuf, Sz), DeallocBuf(&CompresBuf));
   ReadBackwardBuffer(Fp, &CompresBuf);
-  DecodeIOTime_ += ElapsedTime(&IOTimer);
-  BytesRdos_ += Size(CompresBuf);
+  //DecodeIOTime_ += ElapsedTime(&IOTimer);
+  //BytesRdos_ += Size(CompresBuf);
   idx2_RAII(bitstream, Bs, );
   DecompressBufZstd(CompresBuf, &Bs);
   int Pos = 0;
@@ -43962,8 +43962,8 @@ ReadFile(decode_data* D, hash_table<u64, file_cache>::iterator* FileCacheIt, con
             AllocBuf(&CpresChunkAddrs, ChunkAddrsSz),
             DeallocBuf(&CpresChunkAddrs)); // TODO: move to decode_data
   ReadBackwardBuffer(Fp, &CpresChunkAddrs, ChunkAddrsSz);
-  BytesData_ += ChunkAddrsSz;
-  DecodeIOTime_ += ElapsedTime(&IOTimer);
+  D->BytesData_ += ChunkAddrsSz;
+  D->DecodeIOTime_ += ElapsedTime(&IOTimer);
   Rewind(&D->ChunkAddrsStream);
   GrowToAccomodate(&D->ChunkAddrsStream, IniChunkAddrsSz - Size(D->ChunkAddrsStream));
   DecompressBufZstd(CpresChunkAddrs, &D->ChunkAddrsStream);
@@ -43975,8 +43975,8 @@ ReadFile(decode_data* D, hash_table<u64, file_cache>::iterator* FileCacheIt, con
   Rewind(&D->ChunkSzsStream);
   GrowToAccomodate(&D->ChunkSzsStream, ChunkSizesSz - Size(D->ChunkSzsStream));
   ReadBackwardBuffer(Fp, &D->ChunkSzsStream.Stream, ChunkSizesSz);
-  BytesData_ += ChunkSizesSz;
-  DecodeIOTime_ += ElapsedTime(&IOTimer);
+  D->BytesData_ += ChunkSizesSz;
+  D->DecodeIOTime_ += ElapsedTime(&IOTimer);
   InitRead(&D->ChunkSzsStream, D->ChunkSzsStream.Stream);
 
   /* parse the chunk addresses and cache in memory */
@@ -44032,8 +44032,8 @@ ReadChunkExponents(const idx2_file& Idx2, decode_data* D, u64 Brick, i8 Level, i
     Resize(&D->CompressedChunkExps, ChunkExpSize);
     ReadBuffer(Fp, &D->CompressedChunkExps, ChunkExpSize);
     DecompressBufZstd(buffer{ D->CompressedChunkExps.Data, ChunkExpSize }, &ChunkExpStream);
-    BytesExps_ += ChunkExpSize;
-    DecodeIOTime_ += ElapsedTime(&IOTimer);
+    D->BytesExps_ += ChunkExpSize;
+    D->DecodeIOTime_ += ElapsedTime(&IOTimer);
     InitRead(&ChunkExpStream, ChunkExpStream.Stream);
     FileExpCache->ChunkExpCaches[D->ChunkInFile] = ChunkExpCache;
   }
@@ -44076,8 +44076,8 @@ ReadChunk(const idx2_file& Idx2, decode_data* D, u64 Brick, i8 Iter, i8 Level, i
     InitWrite(&ChunkStream,
               ChunkSize); // NOTE: not a memory leak since we will keep track of this in ChunkCache
     ReadBuffer(Fp, &ChunkStream.Stream);
-    BytesData_ += Size(ChunkStream.Stream);
-    DecodeIOTime_ += ElapsedTime(&IOTimer);
+    D->BytesData_ += Size(ChunkStream.Stream);
+    D->DecodeIOTime_ += ElapsedTime(&IOTimer);
     DecompressChunk(&ChunkStream,
                     ChunkCache,
                     ChunkAddress,
@@ -44226,7 +44226,7 @@ DecodeSubband(const idx2_file& Idx2, decode_data* D, f64 Accuracy, const grid& S
         BVol->At<f64>(From3, Strd3, D3 + S3) = BlockFloats[J++];
       }
       idx2_EndFor3; // end sample loop
-      DataMovementTime_ += ElapsedTime(&DataTimer);
+      D->DataMovementTime_ += ElapsedTime(&DataTimer);
     }
   }
 
@@ -44357,6 +44357,7 @@ Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf)
   const int BrickBytes = Prod(Idx2.BrickDimsExt3) * sizeof(f64);
   BrickAlloc_ = free_list_allocator(BrickBytes);
   // TODO: move the decode_data into idx2_file itself
+  //idx2_RAII(decode_data, D, Init(&D, &BrickAlloc_));
   idx2_RAII(decode_data, D, Init(&D, &Mallocator()));
   //  D.QualityLevel = Dw->GetQuality();
   f64 Accuracy = Max(Idx2.Accuracy, P.DecodeAccuracy);
@@ -44451,12 +44452,12 @@ Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf)
   } // end level loop
     //  printf("count zeroes        = %lld\n", CountZeroes);
   printf("total decode time   = %f\n", Seconds(ElapsedTime(&DecodeTimer)));
-  printf("io time             = %f\n", Seconds(DecodeIOTime_));
-  printf("data movement time  = %f\n", Seconds(DataMovementTime_));
-  printf("rdo   bytes read    = %" PRIi64 "\n", BytesRdos_);
-  printf("exp   bytes read    = %" PRIi64 "\n", BytesExps_);
-  printf("data  bytes read    = %" PRIi64 "\n", BytesData_);
-  printf("total bytes read    = %" PRIi64 "\n", BytesRdos_ + BytesExps_ + BytesData_);
+  printf("io time             = %f\n", Seconds(D.DecodeIOTime_));
+  printf("data movement time  = %f\n", Seconds(D.DataMovementTime_));
+  printf("rdo   bytes read    = %" PRIi64 "\n", D.BytesRdos_);
+  printf("exp   bytes read    = %" PRIi64 "\n", D.BytesExps_);
+  printf("data  bytes read    = %" PRIi64 "\n", D.BytesData_);
+  printf("total bytes read    = %" PRIi64 "\n", D.BytesRdos_ + D.BytesExps_ + D.BytesData_);
 }
 
 static void

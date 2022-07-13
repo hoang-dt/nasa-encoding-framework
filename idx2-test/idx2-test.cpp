@@ -3,9 +3,11 @@
 #include "idx2.hpp"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cassert>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 
@@ -23,6 +25,8 @@ struct input
 {
   std::string InFile; // e.g., "llc2160/u-face-3-depth-51-time-0-1024.idx2" (ALWAYS include the parent dir, not just the name of the .idx2 file)
   idx2::extent Extent; // "crop" the output to a region in the [x, y, t] space, leave as default to get whole volume
+  idx2::v3i Downsampling3;
+  double Accuracy;
 };
 
 
@@ -139,11 +143,11 @@ struct output
 idx2::volume
 CollapseByInterpolation(const idx2::volume& Vol, idx2::dimension D, double T);
 
+std::atomic<int> NumThreads = 0;
+
 idx2::error<idx2::idx2_err_code>
 DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converted_files" (an absolute or relative path that leads to the parent dir of the .idx2 file, can also simply be ".")
               const input& Input, // see struct input above
-              const idx2::v3i& Downsampling3, // e.g., (1, 1, 2) (meaning half x, half y, quarter t)
-              double Accuracy, // e.g., 0.01
               output* Output)
 {
   assert(Output != nullptr);
@@ -158,9 +162,9 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
 
   // Next, we compute the output grid
   //P.DownsamplingFactor3 = Downsampling3;
-  Idx2.DownsamplingFactor3 = Downsampling3; // TODO: this should be in P instead
+  Idx2.DownsamplingFactor3 = Input.Downsampling3; // TODO: this should be in P instead
   //Idx2.Accuracy = Accuracy;
-  P.DecodeAccuracy = Accuracy;
+  P.DecodeAccuracy = Input.Accuracy;
   if (idx2::Dims(Input.Extent) == idx2::v3i(0))
     P.DecodeExtent = idx2::extent(Idx2.Dims3); // get the whole volume
   else
@@ -195,7 +199,8 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   idx2::SetFrom(&Output->OutGrid, From3);
   idx2::SetDims(&Output->OutGrid, Dims3);
   Output->OutBuffer = Vol.Buffer;
-  printf("%lld\n", Vol.Buffer.Bytes);
+
+  --NumThreads;
 
   return idx2_Error(idx2::idx2_err_code::NoError); // make sure to check for return error at call site
 }
@@ -234,7 +239,6 @@ CollapseByInterpolation(const idx2::volume& Vol, idx2::dimension D, double T)
 idx2::error<idx2::idx2_err_code>
 GetOutputGrid(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converted_files" (an absolute or relative path that leads to the parent dir of the .idx2 file, can also simply be ".")
               const input& Input, // see struct input above
-              const idx2::v3i& Downsampling3, // e.g., (1, 1, 2) (meaning half x, half y, quarter t)
               idx2::grid* OutGrid)
 {
   assert(OutGrid != nullptr);
@@ -248,7 +252,7 @@ GetOutputGrid(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   idx2_PropagateIfError(Init(&Idx2, P));
 
   // Next, we compute the output grid
-  P.DownsamplingFactor3 = Downsampling3;
+  P.DownsamplingFactor3 = Input.Downsampling3;
   if (idx2::Dims(Input.Extent) == idx2::v3i(0))
     P.DecodeExtent = idx2::extent(Idx2.Dims3); // get the whole volume
   else
@@ -259,6 +263,12 @@ GetOutputGrid(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
 }
 
 
+void RunTask()
+{
+
+}
+
+
 /* Get potentially multiple faces at multiple depths */
 // TODO: we can use multiple threads, one for each file
 // TODO: think about error handling (what if the input file does not exist)
@@ -266,10 +276,9 @@ GetOutputGrid(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
 idx2::error<idx2::idx2_err_code>
 DecodeMultipleFiles(const std::string& InDir,
                     const std::vector<input>& Inputs,
-                    const idx2::v3i& Downsampling3,
-                    double Accuracy,
                     std::vector<output>* Outputs)
 {
+
   idx2_Assert(!Inputs.empty(), "Input cannot be empty\n");
   idx2_Assert(Inputs.size() == Outputs->size());
 
@@ -293,14 +302,26 @@ DecodeMultipleFiles(const std::string& InDir,
     for (int J = Begin; J < I; ++J) {
       Extent = idx2::BoundingBox(Extent, SortedInputs[J].first.Extent); // accumulate extent
     }
-    input Input{ SortedInputs[Begin].first.InFile, Extent };
+    input Input;
+    Input.InFile = SortedInputs[Begin].first.InFile;
+    Input.Extent = Extent;
+    Input.Accuracy = SortedInputs[Begin].first.Accuracy;
+    Input.Downsampling3 = SortedInputs[Begin].first.Downsampling3;
     output Output;
-    idx2_PropagateIfError(DecodeOneFile(InDir, Input, Downsampling3, Accuracy, &Output));
+    idx2::timer Timer;
+    idx2::StartTimer(&Timer);
+    //idx2_PropagateIfError(DecodeOneFile(InDir, Input, &Output));
+    //if () {
+
+    //}
+    auto Seconds = idx2::Seconds(idx2::ElapsedTime(&Timer));
+    printf("**** Reading file %s\n", Input.InFile.data());
+    printf("**** Time taken to decode one file = %f s\n", Seconds);
 
     /* now distribute the output */
     for (int J = Begin; J < I; ++J) {
       output& OutputJ = (*Outputs)[SortedInputs[J].second];
-      GetOutputGrid(InDir, SortedInputs[J].first, Downsampling3, &(OutputJ.OutGrid));
+      GetOutputGrid(InDir, SortedInputs[J].first, &(OutputJ.OutGrid));
       OutputJ.DataType = Output.DataType;
 
       idx2::i64 MinBufSize = idx2::SizeOf(Output.DataType) * idx2::Prod<idx2::i64>(idx2::Dims(OutputJ.OutGrid));
@@ -318,6 +339,8 @@ DecodeMultipleFiles(const std::string& InDir,
     }
     Begin = I;
   }
+
+
   return idx2_Error(idx2::idx2_err_code::NoError);
 }
 
@@ -584,12 +607,18 @@ ExecuteQuery(const query_info& QueryInfo,
       for (int T = 0; T+ QueryInfo.TimeRange.Begin < QueryInfo.TimeRange.End; ++T) {
         int Time = QueryInfo.TimeRange.Begin + T;
         int Index = T * TimeStride + F * FaceStride + D * DepthStride;
+        input& CurrentInput = Inputs[Index];
         const spatial_range& R = QueryInfo.SpatialRanges[F];
-        Inputs[Index].Extent = idx2::extent(idx2::v3i(R.XRange.Begin, R.YRange.Begin, Time), idx2::v3i(R.XRange.End - R.XRange.Begin, R.YRange.End - R.YRange.Begin, 1));
+        CurrentInput.Extent = idx2::extent(idx2::v3i(R.XRange.Begin, R.YRange.Begin, Time), idx2::v3i(R.XRange.End - R.XRange.Begin, R.YRange.End - R.YRange.Begin, 1));
         int TimeBegin = Time / QueryInfo.TimeGroup;
         int TimeEnd = TimeBegin + QueryInfo.TimeGroup;
-        Inputs[Index].InFile.resize(256);
-        sprintf(Inputs[Index].InFile.data(), QueryInfo.NameFormat.data(), R.Face, Depth, TimeBegin, TimeEnd);
+        CurrentInput.InFile.resize(256);
+        sprintf(CurrentInput.InFile.data(), QueryInfo.NameFormat.data(), R.Face, Depth, TimeBegin, TimeEnd);
+        CurrentInput.Accuracy = QueryInfo.Accuracy;
+        CurrentInput.Downsampling3 = QueryInfo.Downsampling3;
+        if (R.Face > 2) {
+          idx2::Swap(&CurrentInput.Downsampling3.X, &CurrentInput.Downsampling3.Y);
+        }
 
         (*OutputsMetadata)[Index].Depth = Depth;
         (*OutputsMetadata)[Index].Time = Time;
@@ -597,8 +626,8 @@ ExecuteQuery(const query_info& QueryInfo,
       }
     }
   }
-  idx2_PropagateIfError(DecodeMultipleFiles(QueryInfo.InDir, Inputs, QueryInfo.Downsampling3, QueryInfo.Accuracy, Outputs));
-  // TODO: how do we free the buffers
+  idx2_PropagateIfError(DecodeMultipleFiles(QueryInfo.InDir, Inputs, Outputs));
+  return idx2_Error(idx2::err_code::NoError);
 }
 
 
@@ -645,16 +674,18 @@ VerticalSlicingExample()
       else if (Faces[F] > 2) // for faces 3 and 4, we need to "rotate" the slice
         QueryInfo.AddFaceSlice(Faces[F], slice_type::RotatedAlongX, SlicePosition);
     }
-    auto Result = ExecuteQuery(QueryInfo, &Outputs, &OutputsMetadata);
-    if (!Result) {
-      fprintf(stderr, "%s\n", ToString(Result));                                                   \
-      return Result;
+    auto ResultOk = ExecuteQuery(QueryInfo, &Outputs, &OutputsMetadata);
+    if (!ResultOk) {
+      fprintf(stderr, "%s\n", ToString(ResultOk));                                                   \
+      return ResultOk;
     }
 
-    // since the order of the output buffers is TimeDepthFace, if we copy the output buffers into
-    // a single big buffer (with potential rotation for faces 3 and 4), we obtain a buffer that
-    // represent the whole vertical slice, and thus can be visualized
-
+    /* write the output buffers to files (note that faces 3 and 4 are rotated) */
+    for (int I = 0; I < Outputs.size(); ++I) {
+      char FileName[256];
+      sprintf(FileName, "face-%d-depth-%2d", OutputsMetadata[I].Face, OutputsMetadata[I].Depth);
+      idx2::WriteBuffer(FileName, Outputs[I].OutBuffer);
+    }
   }
 
   /* Deallocate the output memory */
