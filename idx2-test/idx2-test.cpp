@@ -10,7 +10,10 @@
 #include <string>
 #include <thread>
 #include <vector>
-
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/tuple.h>
+#include <nanobind/tensor.h>
 
 /*
 * Data description:
@@ -686,7 +689,7 @@ VerticalSlicingExample()
     * |        | |        | |        | |        |
     * +--------+ +--------+ +--------+ +--------+
     */
-    std::array<int, 4> Faces = { 0, 1, 3, 4 }; // all the "lat-lon" faces
+    std::array<int, 4> Faces = { 0, 1}; // all the "lat-lon" faces
     int SlicePosition = 3000;
     for (int F = 0; F < Faces.size(); ++F) {
       if (Faces[F] < 2)
@@ -744,6 +747,116 @@ VerticalSlicingExample()
   return idx2_Error(idx2::err_code::NoError);
 }
 
+
+/* Do vertical slicing */
+idx2::error<idx2::idx2_err_code>
+VerticalSlicingExample2()
+{
+  // TODO: either interpolate or snap the slice to one
+
+  /* We first slice faces 0, 1, 3, 4 along X axis, at Y = 3000, for time step 16 */
+  llc_2160_query_info QueryInfo;
+  //QueryInfo.SetNameFormat("/nobackupp19/vpascucc/converted_files/nasa-encoding-framework/llc2160/u-face-%d-depth-%d-time-%d-%d.idx2");
+  //QueryInfo.SetInputDirectory("/nobackupp19/vpascucc/converted_files/nasa-encoding-framework/");
+  QueryInfo.SetNameFormat("D:/Datasets/nasa/llc_2160_32/llc2160/u-face-%d-depth-%d-time-%d-%d.idx2");
+  QueryInfo.SetInputDirectory("D:/Datasets/nasa/llc_2160_32");
+  QueryInfo.SetTimeGroup(1024);
+  QueryInfo.SetDepthRange(0, 2);
+  QueryInfo.SetTimeRange(16, 17);
+  QueryInfo.SetOrder(order::TimeDepthFace);
+  QueryInfo.SetDownsamplingFactor(0, 2, 2);
+  QueryInfo.SetAccuracy(0.01);
+
+  std::vector<output> Outputs;
+  std::vector<output_metadata> OutputsMetadata;
+
+  { /* We first do vertical slicing at time = 16 and at Y = 3000 that will cut across the four lat-lon faces
+    * +--------+ +--------+ +--------+ +--------+
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * --------------------------------------------->
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * |        | |        | |        | |        |
+    * +--------+ +--------+ +--------+ +--------+
+    */
+    /*std::array<int, 1> Faces = { 0 };//, 1, 3, 4 }; // all the "lat-lon" faces
+    int SlicePosition = 3000;
+    for (int F = 0; F < Faces.size(); ++F) {
+      if (Faces[F] < 2)
+        QueryInfo.AddFaceSlice(Faces[F], slice_type::AlongX, SlicePosition);
+      else if (Faces[F] > 2) // for faces 3 and 4, we need to "rotate" the slice
+        QueryInfo.AddFaceSlice(Faces[F], slice_type::RotatedAlongX, SlicePosition);
+	}
+
+    auto ResultOk = ExecuteQuery(QueryInfo, &Outputs, &OutputsMetadata);
+    if (!ResultOk) {
+      fprintf(stderr, "%s\n", ToString(ResultOk));
+      return ResultOk;
+      }
+
+    /* write the output buffers to files (note that faces 3 and 4 are rotated) */
+    /*for (int I = 0; I < Outputs.size(); ++I) {
+      char FileName[256];
+      sprintf(FileName, "face-%d-depth-%d", OutputsMetadata[I].Face, OutputsMetadata[I].Depth);
+      idx2::WriteBuffer(FileName, Outputs[I].OutBuffer);
+      }*/
+    }
+
+  /* Deallocate the output memory */
+  /*Outputs.clear();
+    OutputsMetadata.clear();*/
+
+  { /* Now we do vertical slicing across 32 time steps, at X = 1000 on face 3 only
+ //   * +--------+ +--------+ +---|----+ +--------+
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * |        | |        | |   |    | |        |
+ //   * +--------+ +--------+ +---|----+ +--------+
+	//*/
+    QueryInfo.SetTimeRange(0, 32);
+    std::array<int, 1> Faces = { 0 }; // all the "lat-lon" faces
+    int SlicePosition = 1000;
+    for (int F = 0; F < Faces.size(); ++F) {
+      if (Faces[F] < 2)
+        QueryInfo.AddFaceSlice(Faces[F], slice_type::AlongY, SlicePosition);
+      else if (Faces[F] > 2) // for faces 3 and 4, we need to "rotate" the slice
+        QueryInfo.AddFaceSlice(Faces[F], slice_type::RotatedAlongY, SlicePosition);
+    }
+    auto Result = ExecuteQuery(QueryInfo, &Outputs, &OutputsMetadata);
+    if (!Result) {
+      fprintf(stderr, "%s\n", ToString(Result));
+      return Result;
+      }
+  }
+
+  return idx2_Error(idx2::err_code::NoError);
+}
+
+namespace nb = nanobind;
+
+nb::tensor<nb::numpy, float, nb::shape<nb::any, nb::any, nb::any>>
+VerticalSlice()
+{
+
+  size_t Shape[3] = { (size_t)1, (size_t)1, (size_t)1 };
+  printf("hello world\n");
+  return nb::tensor<nb::numpy, float, nb::shape<nb::any, nb::any, nb::any>>(nullptr, 3, Shape);
+}
+
+NB_MODULE(idx2Nasa, M)
+{
+  M.def("VerticalSlice", VerticalSlice);
+}
 
 int main()
 {
