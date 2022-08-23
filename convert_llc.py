@@ -1,9 +1,11 @@
 # Put all the time steps for a certain face (at a certain depth) into a single volume
+# To run this file: python convert_llc.py files-v.txt llc2160 v 1024
 
 import glob
 import mmap
 import numpy as np
 import os
+import shutil
 import sys
 from time import sleep
 from config import n_faces, n_depths, nx, ny, type_bytes, dfx, dfy
@@ -82,6 +84,9 @@ if __name__ == '__main__':
         if os.path.exists(idx2_file_name):
           print('found')
           continue
+        dir_name = dataset_name + '/' + output_file
+        if os.path.exists(dir_name):
+          shutil.rmtree(dataset_name + '/' + output_file) # remove the dir first to avoid writing a corrupted file
         extract_face_across_time(files, t_from, t_to, f, d, output_file + '.raw')
         while len(glob.glob1('./', '*.raw')) >= 8: # do not spawn more than 8 processes
           continue
