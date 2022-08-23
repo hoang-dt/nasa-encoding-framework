@@ -9306,7 +9306,7 @@ void
 SetDownsamplingFactor(idx2_file* Idx2, const v3i& DownsamplingFactor3);
 
 error<idx2_err_code>
-Finalize(idx2_file* Idx2);
+Finalize(idx2_file* Idx2, const params& P);
 
 void
 Dealloc(idx2_file* Idx2);
@@ -14788,7 +14788,7 @@ typedef struct SExpr {
         bool b;
         int i;
         float f;
-
+        
         // For strings as well as IDs
         SExprString s;
 
@@ -14810,7 +14810,7 @@ typedef enum SExprResultType {
 
 typedef struct SExprResult {
     SExprResultType type;
-
+    
     union
     {
         SExpr* expr;
@@ -14935,7 +14935,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
         } else if(SExprStringEqual(parser->src, &s, "false")) {
             static SExpr sfalse = {SE_BOOL};
             sfalse.b = false;
-
+            
             return &sfalse;
         }
 
@@ -14970,7 +14970,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
             SExpr* expr = SExprAlloc(parser, SE_FLOAT);
             expr->f = (float)strtod(buf, NULL);
             return expr;
-        }
+        }    
 
         SExpr* expr = SExprAlloc(parser, SE_INT);
         expr->i = strtol(buf, NULL, 10);
@@ -15015,7 +15015,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
 
         if(parser->last == ')' || parser->last == ']' || parser->last == '}') {
             parser->last = SExprGetChar(parser);
-
+            
             static SExpr nil = {SE_NIL};
             return &nil;
         }
@@ -15038,7 +15038,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
 				tail = elem;
             }
 
-			while(parser->last && isspace(parser->last)) {
+			while(parser->last && isspace(parser->last)) {		
 				if(parser->last == '\n') {
 					parser->lineNumber++;
 				}
@@ -18666,9 +18666,9 @@ typedef enum {
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means default, which is controlled by ZSTD_CLEVEL_DEFAULT.
                               * Note 1 : it's possible to pass a negative compression level.
-                              * Note 2 : setting a level does not automatically set all other compression parameters
-                              *   to default. Setting this will however eventually dynamically impact the compression
-                              *   parameters which have not been manually set. The manually set
+                              * Note 2 : setting a level does not automatically set all other compression parameters 
+                              *   to default. Setting this will however eventually dynamically impact the compression 
+                              *   parameters which have not been manually set. The manually set 
                               *   ones will 'stick'. */
     /* Advanced compression parameters :
      * It's possible to pin down compression parameters to some specific values.
@@ -42977,7 +42977,7 @@ SetDownsamplingFactor(idx2_file* Idx2, const v3i& DownsamplingFactor3)
 }
 
 error<idx2_err_code>
-Finalize(idx2_file* Idx2)
+Finalize(idx2_file* Idx2, const params& P)
 {
   if (!(IsPow2(Idx2->BrickDims3.X) && IsPow2(Idx2->BrickDims3.Y) && IsPow2(Idx2->BrickDims3.Z)))
     return idx2_Error(
@@ -43011,7 +43011,7 @@ Finalize(idx2_file* Idx2)
     BuildSubbands(Idx2->BrickDims3, Idx2->NTformPasses, Idx2->TformOrder, &Idx2->SubbandsNonExt);
 
     // Compute the decode subband mask based on DownsamplingFactor3
-    v3i Df3 = Idx2->DownsamplingFactor3;
+    v3i Df3 = P.DownsamplingFactor3;
     idx2_For (int, I, 0, Idx2->NLevels)
     {
       if (Df3.X > 0 && Df3.Y > 0 && Df3.Z > 0)
@@ -44327,6 +44327,8 @@ Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf)
   timer DecodeTimer;
   StartTimer(&DecodeTimer);
   // TODO: we should add a --effective-mask
+  if (Dims(P.DecodeExtent).X == 0)
+    P.DecodeExtent = extent(Idx2.Dims3);
   grid OutGrid = GetGrid(Idx2, P.DecodeExtent);
   printf("output grid = " idx2_PrStrGrid "\n", idx2_PrGrid(OutGrid));
   mmap_volume OutVol;
@@ -48628,8 +48630,9 @@ error<idx2_err_code>
 Init(idx2_file* Idx2, const params& P)
 {
   SetDir(Idx2, P.InDir);
+  SetDownsamplingFactor(Idx2, P.DownsamplingFactor3);
   idx2_PropagateIfError(ReadMetaFile(Idx2, idx2_PrintScratch("%s", P.InputFile)));
-  idx2_PropagateIfError(Finalize(Idx2));
+  idx2_PropagateIfError(Finalize(Idx2, P));
   return idx2_Error(idx2_err_code::NoError);
 }
 
