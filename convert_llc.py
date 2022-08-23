@@ -1,5 +1,6 @@
 # Put all the time steps for a certain face (at a certain depth) into a single volume
 # To run this file: python convert_llc.py files-v.txt llc2160 v 1024
+# Every combination of (face, depth, 1024 time steps) goes into one idx2 file
 
 import glob
 import mmap
@@ -27,11 +28,17 @@ def form_output_file_name(field_name, time_from, time_to, face, depth):
 
 
 # Put a certain face (at a certain depth) across time steps [time_from, time_to] into a single volume
+# We go fetch each face at each depth (level) from [time_from, time_to) and put them into a single raw file
+# aashish: "merge" 1024 raw files into a single raw file
+# level_0_face_0_time_0.raw
+# level_0_face_1_time_0.raw
+#....
+# merge level_i_face_j_time_0.raw ... level_i_face_j_time_1023.raw -> into a single raw file for every i,j 
 def extract_face_across_time(files, time_from, time_to, face, depth, output_file):
   # For each time step, skip to the face of interest and copy out the bytes
   print(output_file)
   with open(output_file, 'w+b') as g:
-    skip_bytes = depth * nx * ny * 13 * type_bytes
+    skip_bytes = depth * nx * ny * 13 * type_bytes # aashish: change 13 to 6
     for f in range(0, face):
       skip_bytes += dfx[f] * dfy[f] * type_bytes
     face_bytes = type_bytes * dfx[face] * dfy[face]
@@ -41,7 +48,7 @@ def extract_face_across_time(files, time_from, time_to, face, depth, output_file
         buf = f.read(face_bytes)
         dt = np.dtype('>f')        
         np_array_be = np.frombuffer(buf, dtype=dt)
-        np_array_le = np_array_be.byteswap()
+        np_array_le = np_array_be.byteswap() # aashish: do not do the byteswap (to convert big endian to little endian)
         g.write(np_array_le)
         f.close()
 
