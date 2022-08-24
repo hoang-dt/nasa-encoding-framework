@@ -11984,7 +11984,7 @@ Initialize IDX2 with given parameters.
 Call this function first.
 */
 error<idx2_err_code>
-Init(idx2_file* Idx2, const params& P);
+Init(idx2_file* Idx2, params& P);
 
 struct brick_copier;
 
@@ -12004,7 +12004,7 @@ GetOutputGrid(const idx2_file& Idx2, const params& P);
 Decode into a buffer.
 */
 error<idx2_err_code>
-Decode(idx2_file* Idx2, const params& P, buffer* OutBuf);
+Decode(idx2_file* Idx2, params& P, buffer* OutBuf);
 
 /*
 Deallocate all internal memory used by IDX2.
@@ -44327,8 +44327,6 @@ Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf)
   timer DecodeTimer;
   StartTimer(&DecodeTimer);
   // TODO: we should add a --effective-mask
-  if (Dims(P.DecodeExtent).X == 0)
-    P.DecodeExtent = extent(Idx2.Dims3);
   grid OutGrid = GetGrid(Idx2, P.DecodeExtent);
   printf("output grid = " idx2_PrStrGrid "\n", idx2_PrGrid(OutGrid));
   mmap_volume OutVol;
@@ -48627,12 +48625,14 @@ namespace idx2
 {
 
 error<idx2_err_code>
-Init(idx2_file* Idx2, const params& P)
+Init(idx2_file* Idx2, params& P)
 {
   SetDir(Idx2, P.InDir);
   SetDownsamplingFactor(Idx2, P.DownsamplingFactor3);
   idx2_PropagateIfError(ReadMetaFile(Idx2, idx2_PrintScratch("%s", P.InputFile)));
   idx2_PropagateIfError(Finalize(Idx2, P));
+  if (Dims(P.DecodeExtent).X == 0)
+    P.DecodeExtent = extent(Idx2->Dims3);
   return idx2_Error(idx2_err_code::NoError);
 }
 
@@ -48643,7 +48643,7 @@ GetOutputGrid(const idx2_file& Idx2, const params& P)
 }
 
 error<idx2_err_code>
-Decode(idx2_file* Idx2, const params& P, buffer* OutBuf)
+Decode(idx2_file* Idx2, params& P, buffer* OutBuf)
 {
   Decode(*Idx2, P, OutBuf);
   return idx2_Error(idx2_err_code::NoError);
