@@ -9553,7 +9553,7 @@ SizeBrickPool(const decode_data& D)
 }
 
 // TODO: return an error code?
-void
+error<idx2_err_code>
 Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf = nullptr);
 
 } // namespace idx2
@@ -43709,7 +43709,7 @@ Convolve(const c& F, const c& G, c* H)
 namespace idx2
 {
 
-void
+error<idx2_err_code>
 Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf);
 
 static error<idx2_err_code>
@@ -43741,7 +43741,7 @@ DecodeSubband(const idx2_file& Idx2,
               const grid& SbGrid,
               volume* BVol);
 
-static void
+static error<idx2_err_code>
 DecodeBrick(const idx2_file& Idx2, const params& P, decode_data* D, u8 Mask, f64 Accuracy);
 
 static void
@@ -43816,8 +43816,10 @@ Dealloc(file_cache_table* FileCacheTable)
   Dealloc(&FileCacheTable->FileCaches);
   idx2_ForEach (FileExpCacheIt, FileCacheTable->FileExpCaches)
     Dealloc(FileExpCacheIt.Val);
+  Dealloc(&FileCacheTable->FileExpCaches);
   idx2_ForEach (FileRdoCacheIt, FileCacheTable->FileRdoCaches)
     Dealloc(FileRdoCacheIt.Val);
+  Dealloc(&FileCacheTable->FileRdoCaches);
 }
 
 static void
@@ -43948,6 +43950,7 @@ ReadFile(decode_data* D, hash_table<u64, file_cache>::iterator* FileCacheIt, con
   timer IOTimer;
   StartTimer(&IOTimer);
   idx2_RAII(FILE*, Fp = fopen(FileId.Name.ConstPtr, "rb"), , if (Fp) fclose(Fp));
+  idx2_ReturnErrorIf(!Fp, idx2::idx2_err_code::FileNotFound);
   idx2_FSeek(Fp, 0, SEEK_END);
   int NChunks = 0;
   ReadBackwardPOD(Fp, &NChunks);
@@ -44171,7 +44174,7 @@ DecodeSubband(const idx2_file& Idx2, decode_data* D, f64 Accuracy, const grid& S
         auto ReadChunkResult = ReadChunk(Idx2, D, Brick, D->Level, D->Subband, RealBp);
         if (!ReadChunkResult)
         {
-          idx2_Assert(false);
+          //idx2_Assert(false);
           return Error(ReadChunkResult);
         }
         const chunk_cache* ChunkCache = Value(ReadChunkResult);
@@ -44233,7 +44236,7 @@ DecodeSubband(const idx2_file& Idx2, decode_data* D, f64 Accuracy, const grid& S
   return idx2_Error(idx2_err_code::NoError);
 }
 
-static void
+static error<idx2_err_code>
 DecodeBrick(const idx2_file& Idx2, const params& P, decode_data* D, f64 Accuracy)
 {
   i8 Level = D->Level;
@@ -44307,7 +44310,7 @@ DecodeBrick(const idx2_file& Idx2, const params& P, decode_data* D, f64 Accuracy
     if (Sb == 0 || BitSet(Idx2.DecodeSubbandMasks[Level], Sb))
     { // NOTE: the check for Sb == 0 prevents the output volume from having blocking artifacts
       if (Idx2.Version == v2i(1, 0))
-        DecodeSubband(Idx2, D, Accuracy, S.Grid, &BVol);
+        idx2_PropagateIfError(DecodeSubband(Idx2, D, Accuracy, S.Grid, &BVol));
     }
   } // end subband loop
   // TODO: inverse transform only to the necessary level
@@ -44318,10 +44321,12 @@ DecodeBrick(const idx2_file& Idx2, const params& P, decode_data* D, f64 Accuracy
     else
       InverseCdf53(Idx2.BrickDimsExt3, D->Level, Idx2.Subbands, Idx2.Td, &BVol, true);
   }
+
+  return idx2_Error(err_code::NoError);
 }
 
 /* TODO: dealloc chunks after we are done with them */
-void
+error<idx2_err_code>
 Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf)
 {
   timer DecodeTimer;
@@ -44418,7 +44423,7 @@ Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf)
           D.Brick[Level] = GetLinearBrick(Idx2, Level, Top.BrickFrom3);
           u64 BrickKey = GetBrickKey(Level, D.Brick[Level]);
           Insert(&D.BrickPool, BrickKey, BVol);
-          DecodeBrick(Idx2, P, &D, Accuracy);
+          idx2_PropagateIfError(DecodeBrick(Idx2, P, &D, Accuracy));
           // Copy the samples out to the output buffer (or file)
           if (Level == 0 || Idx2.DecodeSubbandMasks[Level - 1] == 0)
           {
@@ -44458,6 +44463,8 @@ Decode(const idx2_file& Idx2, const params& P, buffer* OutBuf)
   printf("exp   bytes read    = %" PRIi64 "\n", D.BytesExps_);
   printf("data  bytes read    = %" PRIi64 "\n", D.BytesData_);
   printf("total bytes read    = %" PRIi64 "\n", D.BytesRdos_ + D.BytesExps_ + D.BytesData_);
+
+  return idx2_Error(err_code::NoError);
 }
 
 static void
@@ -48631,7 +48638,7 @@ Init(idx2_file* Idx2, params& P)
   SetDownsamplingFactor(Idx2, P.DownsamplingFactor3);
   idx2_PropagateIfError(ReadMetaFile(Idx2, idx2_PrintScratch("%s", P.InputFile)));
   idx2_PropagateIfError(Finalize(Idx2, P));
-  if (Dims(P.DecodeExtent).X == 0)
+  if (Dims(P.DecodeExtent) == v3i(0)) // TODO: this could conflate with the user wanting to decode a single sample (very unlikely though)
     P.DecodeExtent = extent(Idx2->Dims3);
   return idx2_Error(idx2_err_code::NoError);
 }

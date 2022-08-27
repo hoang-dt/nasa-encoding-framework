@@ -10,10 +10,7 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include <nanobind/nanobind.h>
-#include <nanobind/stl/string.h>
-#include <nanobind/stl/tuple.h>
-#include <nanobind/tensor.h>
+
 
 /*
 * Data description:
@@ -256,7 +253,7 @@ GetOutputGrid(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   idx2_PropagateIfError(Init(&Idx2, P));
 
   // Next, we compute the output grid
-  P.DownsamplingFactor3 = Input.Downsampling3;
+  Idx2.DownsamplingFactor3 = P.DownsamplingFactor3 = Input.Downsampling3;
   if (idx2::Dims(Input.Extent) == idx2::v3i(0))
     P.DecodeExtent = idx2::extent(Idx2.Dims3); // get the whole volume
   else
@@ -305,10 +302,13 @@ RunQueryTask(const std::string& InDir,
     // TODO: just automatically reallocate if necessary
     idx2_ReturnErrorIf(OutputJ.OutBuffer.Bytes < MinBufSize, idx2::err_code::SizeTooSmall, "Output buffer is too small\n");
 
-    idx2::extent FromE = idx2::Relative(Output.OutGrid, Output.OutGrid);
+    idx2::extent FromE = idx2::Relative(OutputJ.OutGrid, Output.OutGrid);
     idx2::volume FromV = idx2::volume(Output.OutBuffer, idx2::Dims(FromE), Output.DataType);
-    idx2::extent ToE   = idx2::Relative(OutputJ.OutGrid, Output.OutGrid);
+    idx2::extent ToE   = idx2::Relative(OutputJ.OutGrid, OutputJ.OutGrid);
     idx2::volume ToV   = idx2::volume(OutputJ.OutBuffer, idx2::Dims(ToE), OutputJ.DataType);
+    //printf("size of output buffer = %lld\n", OutputJ.OutBuffer.Bytes);
+    //printf("copying from " idx2_PrStrExt " to " idx2_PrStrExt "\n", idx2_PrExt(FromE), idx2_PrExt(ToE));
+    //int stop = 0;;
     idx2::CopyExtentExtent<float, float>(FromE, FromV, ToE, &ToV); // TODO: hard-coding the types
   }
 
@@ -355,6 +355,7 @@ DecodeMultipleFiles(const std::string& InDir,
     }
     ++NumThreads;
     std::thread (RunQueryTask, InDir, SortedInputs, Begin, I, Outputs).detach();
+    //RunQueryTask(InDir, SortedInputs, Begin, I, Outputs);
     //std::thread (DummyTask).detach();
 
     Begin = I;
@@ -689,7 +690,7 @@ VerticalSlicingExample()
     * |        | |        | |        | |        |
     * +--------+ +--------+ +--------+ +--------+
     */
-    std::array<int, 4> Faces = { 0, 1}; // all the "lat-lon" faces
+    std::array<int, 4> Faces = { 0, 1, 3, 4 }; // all the "lat-lon" faces
     int SlicePosition = 3000;
     for (int F = 0; F < Faces.size(); ++F) {
       if (Faces[F] < 2)
@@ -747,7 +748,6 @@ VerticalSlicingExample()
   return idx2_Error(idx2::err_code::NoError);
 }
 
-
 /* Do vertical slicing */
 idx2::error<idx2::idx2_err_code>
 VerticalSlicingExample2()
@@ -758,9 +758,11 @@ VerticalSlicingExample2()
   llc_2160_query_info QueryInfo;
   //QueryInfo.SetNameFormat("/nobackupp19/vpascucc/converted_files/nasa-encoding-framework/llc2160/u-face-%d-depth-%d-time-%d-%d.idx2");
   //QueryInfo.SetInputDirectory("/nobackupp19/vpascucc/converted_files/nasa-encoding-framework/");
-  QueryInfo.SetNameFormat("D:/Datasets/nasa/llc_2160_32/llc2160/u-face-%d-depth-%d-time-%d-%d.idx2");
-  QueryInfo.SetInputDirectory("D:/Datasets/nasa/llc_2160_32");
-  QueryInfo.SetTimeGroup(1024);
+  //QueryInfo.SetNameFormat("D:/Datasets/nasa/llc_2160_32/llc2160/u-face-%d-depth-%d-time-%d-%d.idx2");
+  //QueryInfo.SetInputDirectory("D:/Datasets/nasa/llc_2160_32");
+  QueryInfo.SetNameFormat("/mnt/d/Datasets/nasa/llc_2160_32/llc2160/u-face-%d-depth-%d-time-%d-%d.idx2");
+  QueryInfo.SetInputDirectory("/mnt/d/Datasets/nasa/llc_2160_32");
+  QueryInfo.SetTimeGroup(32);
   QueryInfo.SetDepthRange(0, 2);
   QueryInfo.SetTimeRange(16, 17);
   QueryInfo.SetOrder(order::TimeDepthFace);
@@ -836,31 +838,16 @@ VerticalSlicingExample2()
     if (!Result) {
       fprintf(stderr, "%s\n", ToString(Result));
       return Result;
-      }
+    }
   }
 
   return idx2_Error(idx2::err_code::NoError);
 }
 
-namespace nb = nanobind;
-
-nb::tensor<nb::numpy, float, nb::shape<nb::any, nb::any, nb::any>>
-VerticalSlice()
-{
-
-  size_t Shape[3] = { (size_t)1, (size_t)1, (size_t)1 };
-  printf("hello world\n");
-  return nb::tensor<nb::numpy, float, nb::shape<nb::any, nb::any, nb::any>>(nullptr, 3, Shape);
-}
-
-NB_MODULE(idx2Nasa, M)
-{
-  M.def("VerticalSlice", VerticalSlice);
-}
 
 int main()
 {
-  VerticalSlicingExample();
+  VerticalSlicingExample2();
   // vertical slicing across time
   // get five faces across time at a certain depth
   // get five faces across depths at a certain time
