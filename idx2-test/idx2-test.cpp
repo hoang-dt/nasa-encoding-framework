@@ -148,7 +148,7 @@ std::atomic<int> NumThreads = 0;
 const auto MaxThreads = std::thread::hardware_concurrency();
 std::vector<std::thread> Workers;
 
-idx2::error<idx2::idx2_err_code>
+idx2::expected<idx2::v3i, idx2::idx2_err_code>
 DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converted_files" (an absolute or relative path that leads to the parent dir of the .idx2 file, can also simply be ".")
               const input& Input, // see struct input above
               output* Output)
@@ -161,10 +161,10 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   P.InDir = InDir.c_str();
   idx2::idx2_file Idx2;
   idx2_CleanUp(Dealloc(&Idx2)); // clean up Idx2 automatically
+  P.DownsamplingFactor3 = Input.Downsampling3;
   idx2_PropagateIfError(Init(&Idx2, P));
 
   // Next, we compute the output grid
-  //P.DownsamplingFactor3 = Downsampling3;
   Idx2.DownsamplingFactor3 = Input.Downsampling3; // TODO: this should be in P instead
   //Idx2.Accuracy = Accuracy;
   P.DecodeAccuracy = Input.Accuracy;
@@ -179,7 +179,7 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   if (!Output->OutBuffer && idx2::Dims(Output->OutGrid) > 0)
     idx2::AllocBuf(&Output->OutBuffer, MinBufSize);
   // If the output buffer is preallocated by the user, we check if it is too small
-  idx2_ReturnErrorIf(Output->OutBuffer.Bytes < MinBufSize, idx2::err_code::SizeTooSmall, "Output buffer is too small\n");
+  idx2_ReturnErrorIf(Output->OutBuffer.Bytes < MinBufSize, idx2::idx2_err_code::SizeTooSmall, "Output buffer is too small\n");
 
   // Finally, we decode and return the queried data
   idx2_PropagateIfError(idx2::Decode(&Idx2, P, &Output->OutBuffer)); // the output is stored in OutBuffer
@@ -203,7 +203,7 @@ DecodeOneFile(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converte
   idx2::SetDims(&Output->OutGrid, Dims3);
   Output->OutBuffer = Vol.Buffer;
 
-  return idx2_Error(idx2::idx2_err_code::NoError); // make sure to check for return error at call site
+  return Idx2.Dims3; // make sure to check for return error at call site
 }
 
 
@@ -236,29 +236,32 @@ CollapseByInterpolation(const idx2::volume& Vol, idx2::dimension D, double T)
   return OutVol;
 }
 
+idx2::grid
+GetGrid(const idx2::v3i& Dims3, const idx2::v3i& DownsamplingFactor3, const idx2::extent& Ext)
+{
+  auto CroppedExt = Crop(Ext, idx2::extent(Dims3));
+  idx2::v3i Strd3(1); // start with stride (1, 1, 1)
+  idx2_For(int, D, 0, 3)
+    Strd3[D] <<= DownsamplingFactor3[D];
+
+  idx2::v3i First3 = idx2::From(CroppedExt);
+  idx2::v3i Last3 = Last(CroppedExt);
+  Last3 = ((Last3 + Strd3 - 1) / Strd3) * Strd3; // move last to the right
+  First3 = (First3 / Strd3) * Strd3; // move first to the left
+
+  return idx2::grid(First3, (Last3 - First3) / Strd3 + 1, Strd3);
+}
 
 idx2::error<idx2::idx2_err_code>
-GetOutputGrid(const std::string& InDir, // e.g., "/nobackupp19/vpascucc/converted_files" (an absolute or relative path that leads to the parent dir of the .idx2 file, can also simply be ".")
+GetOutputGrid(const idx2::v3i& Dims3, // e.g., "/nobackupp19/vpascucc/converted_files" (an absolute or relative path that leads to the parent dir of the .idx2 file, can also simply be ".")
               const input& Input, // see struct input above
               idx2::grid* OutGrid)
 {
   assert(OutGrid != nullptr);
-
-  // First, we initialize the parameters
-  idx2::params P;
-  P.InputFile = Input.InFile.c_str();
-  P.InDir = InDir.c_str();
-  idx2::idx2_file Idx2;
-  idx2_CleanUp(Dealloc(&Idx2)); // clean up Idx2 automatically
-  idx2_PropagateIfError(Init(&Idx2, P));
-
-  // Next, we compute the output grid
-  Idx2.DownsamplingFactor3 = P.DownsamplingFactor3 = Input.Downsampling3;
   if (idx2::Dims(Input.Extent) == idx2::v3i(0))
-    P.DecodeExtent = idx2::extent(Idx2.Dims3); // get the whole volume
+    *OutGrid = GetGrid(Dims3, Input.Downsampling3, idx2::extent(Dims3));
   else
-    P.DecodeExtent = Input.Extent;
-  *OutGrid = idx2::GetOutputGrid(Idx2, P);
+    *OutGrid = GetGrid(Dims3, Input.Downsampling3, Input.Extent);
 
   return idx2_Error(idx2::idx2_err_code::NoError); // make sure to check for return error at call site
 }
@@ -284,7 +287,11 @@ RunQueryTask(const std::string& InDir,
   output Output;
   idx2::timer Timer;
   idx2::StartTimer(&Timer);
-  idx2_PropagateIfError(DecodeOneFile(InDir, Input, &Output));
+  auto Result = DecodeOneFile(InDir, Input, &Output);
+  if (!Result)
+    return Error(Result);
+  idx2::v3i Dims3 = Value(Result);
+
   auto Seconds = idx2::Seconds(idx2::ElapsedTime(&Timer));
   printf("**** Reading file %s\n", Input.InFile.data());
   printf("**** Time taken to decode one file = %f s\n", Seconds);
@@ -292,7 +299,7 @@ RunQueryTask(const std::string& InDir,
   /* now distribute the output */
   for (int J = Begin; J < I; ++J) {
     output& OutputJ = (*Outputs)[SortedInputs[J].second];
-    GetOutputGrid(InDir, SortedInputs[J].first, &(OutputJ.OutGrid));
+    GetOutputGrid(Dims3, SortedInputs[J].first, &(OutputJ.OutGrid));
     OutputJ.DataType = Output.DataType;
 
     idx2::i64 MinBufSize = idx2::SizeOf(Output.DataType) * idx2::Prod<idx2::i64>(idx2::Dims(OutputJ.OutGrid));
@@ -309,11 +316,13 @@ RunQueryTask(const std::string& InDir,
     //printf("size of output buffer = %lld\n", OutputJ.OutBuffer.Bytes);
     //printf("copying from " idx2_PrStrExt " to " idx2_PrStrExt "\n", idx2_PrExt(FromE), idx2_PrExt(ToE));
     //int stop = 0;;
-    idx2::CopyExtentExtent<float, float>(FromE, FromV, ToE, &ToV); // TODO: hard-coding the types
+    //idx2::CopyExtentExtent<float, float>(FromE, FromV, ToE, &ToV); // TODO: hard-coding the types
   }
 
   -- NumThreads;
   printf("done task\n");
+
+  return idx2_Error(idx2::err_code::NoError);
 }
 
 
