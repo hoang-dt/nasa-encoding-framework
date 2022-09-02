@@ -9176,8 +9176,8 @@ struct idx2_file
   static constexpr int MaxLevels = 16;
   static constexpr int MaxTformPassesPerLevels = 9;
   static constexpr int MaxSpatialDepth = 4; // we have at most this number of spatial subdivisions
-  char Name[64] = {};
-  char Field[64] = {};
+  char Name[32] = {};
+  char Field[32] = {};
   v3i Dims3 = v3i(256);
   v3i DownsamplingFactor3 = v3i(0);
   dtype DType = dtype::__Invalid__;
@@ -14788,7 +14788,7 @@ typedef struct SExpr {
         bool b;
         int i;
         float f;
-
+        
         // For strings as well as IDs
         SExprString s;
 
@@ -14810,7 +14810,7 @@ typedef enum SExprResultType {
 
 typedef struct SExprResult {
     SExprResultType type;
-
+    
     union
     {
         SExpr* expr;
@@ -14935,7 +14935,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
         } else if(SExprStringEqual(parser->src, &s, "false")) {
             static SExpr sfalse = {SE_BOOL};
             sfalse.b = false;
-
+            
             return &sfalse;
         }
 
@@ -14970,7 +14970,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
             SExpr* expr = SExprAlloc(parser, SE_FLOAT);
             expr->f = (float)strtod(buf, NULL);
             return expr;
-        }
+        }    
 
         SExpr* expr = SExprAlloc(parser, SE_INT);
         expr->i = strtol(buf, NULL, 10);
@@ -15015,7 +15015,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
 
         if(parser->last == ')' || parser->last == ']' || parser->last == '}') {
             parser->last = SExprGetChar(parser);
-
+            
             static SExpr nil = {SE_NIL};
             return &nil;
         }
@@ -15038,7 +15038,7 @@ SEXPR_DEF SExpr* SExprParseValue(SExprParser* parser)
 				tail = elem;
             }
 
-			while(parser->last && isspace(parser->last)) {
+			while(parser->last && isspace(parser->last)) {		
 				if(parser->last == '\n') {
 					parser->lineNumber++;
 				}
@@ -18666,9 +18666,9 @@ typedef enum {
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means default, which is controlled by ZSTD_CLEVEL_DEFAULT.
                               * Note 1 : it's possible to pass a negative compression level.
-                              * Note 2 : setting a level does not automatically set all other compression parameters
-                              *   to default. Setting this will however eventually dynamically impact the compression
-                              *   parameters which have not been manually set. The manually set
+                              * Note 2 : setting a level does not automatically set all other compression parameters 
+                              *   to default. Setting this will however eventually dynamically impact the compression 
+                              *   parameters which have not been manually set. The manually set 
                               *   ones will 'stick'. */
     /* Advanced compression parameters :
      * It's possible to pin down compression parameters to some specific values.
@@ -43016,23 +43016,18 @@ Finalize(idx2_file* Idx2, const params& P)
     {
       if (Df3.X > 0 && Df3.Y > 0 && Df3.Z > 0)
       {
+        Idx2->DecodeSubbandMasks[I] = 0;
         --Df3.X;
         --Df3.Y;
         --Df3.Z;
-        if (Df3.X > 0 && Df3.Y > 0 && Df3.Z > 0)
-          Idx2->DecodeSubbandMasks[I] = 0;
-        else
-          Idx2->DecodeSubbandMasks[I] = 1; // decode only subband (0, 0, 0)
         continue;
       }
       u8 Mask = 0xFF;
       idx2_For (int, Sb, 0, Size(Idx2->Subbands))
       {
         const v3i& Lh3 = Idx2->Subbands[Sb].LowHigh3;
-        if (Df3.X >= Lh3.X && Df3.Y >= Lh3.Y && Df3.Z >= Lh3.Z)
+        if ((Lh3.X == 1 && Df3.X > 0) || (Lh3.Y == 1 && Df3.Y > 0) || (Lh3.Z == 1 && Df3.Z > 0))
           Mask = UnsetBit(Mask, Sb);
-        if (Lh3 == v3i(0)) // always decode subband 0
-          Mask = SetBit(Mask, Sb);
       }
       Idx2->DecodeSubbandMasks[I] = Mask;
       if (Df3.X > 0) --Df3.X;
@@ -44546,7 +44541,6 @@ ReadMetaFile(idx2_file* Idx2, cstr FileName)
         else if (SExprStringEqual((cstr)Buf.Data, &(LastExpr->s), "name"))
         {
           idx2_Assert(Expr->type == SE_STRING);
-          //printf("Read = %lld length = %lld\n", i64(Expr->s.start), i64(Expr->s.len));
           snprintf(Idx2->Name, Expr->s.len + 1, "%s", (cstr)Buf.Data + Expr->s.start);
           //          printf("Name = %s\n", Idx2->Name);
         }
