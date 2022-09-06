@@ -14,6 +14,6 @@ time_block     = 1024
 time_range     = (0, 1024) # set to (0, 0) to encode all time steps, otherwise set to (begin, end) to encode time steps begin..end-1
 depth_range    = (0, 20)
 face_range     = (0, 1)
-idx2_exe       = '/home1/dthoang/idx2/build/Source/Applications/idx2App''
+idx2_exe       = '/home1/dthoang/idx2/build/Source/Applications/idx2App'
 n_processes    = 8
 out_dir        = '/nobackupp19/vpascucc/converted_files'
