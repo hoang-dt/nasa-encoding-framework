@@ -31,7 +31,7 @@ def convert_to_idx2(raw_file, dataset_name, long_field_name, dimensions):
     + ' --bricks_per_tile 512 '
     + ' --tiles_per_file 4096 '
     + ' --files_per_dir 4096 '
-    + ' --out_dir .')
+    + ' --out_dir ' + config.out_dir)
   print(command)
   os.system(command)
   os.remove(raw_file)
@@ -104,17 +104,17 @@ if __name__ == '__main__':
       for f in range(face_begin, face_end):
         # check if the file has been converted and stored
         output_file, long_field_name, dimensions = form_output_file_name(config.field_name, t_from, t_to, f, d)
-        idx2_file_name = config.dataset_name + '/' + output_file + '.idx2'
+        idx2_file_name = config.out_dir + '/' + config.dataset_name + '/' + output_file + '.idx2'
         print(idx2_file_name)
         if os.path.exists(idx2_file_name):
           print('found')
           continue
-        dir_name = config.dataset_name + '/' + output_file
-        if os.path.exists(dir_name):
-          shutil.rmtree(config.dataset_name + '/' + output_file) # remove the dir first to avoid writing a corrupted file
-        extract_face_across_time(files, t_from, t_to, f, d, output_file + '.raw')
-        while len(glob.glob1('./', '*.raw')) >= config.n_processes:
+        dir_name = config.out_dir + '/' + config.dataset_name + '/' + output_file
+        if os.path.exists(dir_name): # the directory exists without a matching .idx2 file (file converted halfway)
+          shutil.rmtree(dir_name) # remove the dir first to avoid writing a corrupted file
+        extract_face_across_time(files, t_from, t_to, f, d, config.out_dir + '/' + output_file + '.raw')
+        while len(glob.glob1(config.out_dir, '*.raw')) >= config.n_processes:
           continue
           sleep(1)
-        p = Process(target = convert_to_idx2, args = (output_file + '.raw', config.dataset_name, long_field_name, dimensions))
+        p = Process(target = convert_to_idx2, args = (config.out_dir + '/' + output_file + '.raw', config.dataset_name, long_field_name, dimensions))
         p.start()
