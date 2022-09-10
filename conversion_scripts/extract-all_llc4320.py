@@ -30,7 +30,7 @@ for t in range(0, ntimes):
         face_bytes = s * dfx[f] * dfy[f]
         F.seek(skip_bytes)
         buf = F.read(face_bytes)
-        dt = np.dtype('>')
+        dt = np.dtype('>f')
         np_array_be = np.frombuffer(buf, dtype = dt)
         np_array_le = np_array_be.byteswap()
         output = field + '-time-' + repr(t) + '-depth-' + repr(d) + '-face-' + repr(f) + '.raw'
