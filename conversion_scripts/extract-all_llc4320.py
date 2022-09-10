@@ -24,7 +24,7 @@ ntimes = len(files)
 for t in range(0, ntimes):
   with open(files[t], "rb") as f:
     for d in range(0, ndepths):
-      skip_bytes = depth * nx * ny * 13 * s # skip to the depth
+      skip_bytes = d * nx * ny * 13 * s # skip to the depth
       for f in range(0, nfaces):
         skip_bytes += dfx[f] * dfy[f] * s # skip to the face
         face_bytes = s * dfx[f] * dfy[f]
