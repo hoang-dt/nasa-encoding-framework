@@ -2,10 +2,11 @@ import mmap
 import numpy as np
 import sys
 
-files = [ 'U.0000817920.data', 'U.0000818000.data', 'U.0000818080.data', 'U.0000818160.data', 'U.0000818240.data', 'U.0000818320.data', 'U.0000818400.data', 'U.0000818480.data',
-          'U.0000818560.data', 'U.0000818640.data', 'U.0000818720.data', 'U.0000818800.data', 'U.0000818880.data', 'U.0000818960.data', 'U.0000819040.data', 'U.0000819120.data',
-          'U.0000819200.data', 'U.0000819280.data', 'U.0000819360.data', 'U.0000819440.data', 'U.0000819520.data', 'U.0000819600.data', 'U.0000819680.data', 'U.0000819760.data',
-          'U.0000819840.data', 'U.0000819920.data', 'U.0000820000.data', 'U.0000820080.data', 'U.0000820160.data', 'U.0000820240.data', 'U.0000820320.data', 'U.0000820400.data' ]
+# Put the file names into an array (each file supposely contains a time step)
+files = []
+with open(input_file) as s:
+  files = [f.strip('\n') for f in s]
+n_time_steps = len(files)
 
 # Parameters
 nx = 2160
