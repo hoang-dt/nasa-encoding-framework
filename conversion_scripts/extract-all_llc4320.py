@@ -34,7 +34,7 @@ for t in range(0, ntimes):
         np_array_be = np.frombuffer(buf, dtype = dt)
         np_array_le = np_array_be.byteswap()
         if f > 2:
-          np_array_le = np.rot90(le)
+          np_array_le = np.rot90(np_array_le)
         output = field + '-time-' + repr(t) + '-depth-' + repr(d) + '-face-' + repr(f) + '.raw'
         with open(output, 'w+b') as g:            
           g.write(np_array_le)    
