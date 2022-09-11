@@ -35,9 +35,7 @@ for t in range(0, ntimes):
         np_array_be = np_array_be.reshape(dfy[f], dfx[f])
         np_array_le = np_array_be.byteswap()
         output = field + '-time-' + repr(t) + '-depth-' + repr(d) + '-face-' + repr(f) + '.raw'
-        with open(output, 'w+b') as g:            
-          if f <= 2:
-            g.write(np_array_le)    
-          else:
-            g.write(np.rot90(np_array_le))
+        if f > 2:
+          np_array_le = np.rot90(np_array_le)
+        np_array_le.tofile(output)
           
