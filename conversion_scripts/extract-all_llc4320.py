@@ -38,5 +38,5 @@ for t in range(0, ntimes):
           if f <= 2:
             g.write(np_array_le)    
           else:
-            g.write(np.rot90(np_array_le))
+            g.write(np.rot90(np.reshape(np_array_le, (dfy[f], dfx[f]))))
           
