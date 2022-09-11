@@ -37,6 +37,6 @@ for t in range(0, ntimes):
         with open(output, 'w+b') as g:            
           if f <= 2:
             g.write(np_array_le)    
-          else
+          else:
             g.write(np.rot90(np_array_le))
           
