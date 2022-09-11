@@ -32,11 +32,12 @@ for t in range(0, ntimes):
         skip_bytes += dfx[f] * dfy[f] * s # skip to the face
         dt = np.dtype('>f')
         np_array_be = np.frombuffer(buf, dtype = dt)
+        np_array_be = np_array_be.reshape(dfy[f], dfx[f])
         np_array_le = np_array_be.byteswap()
         output = field + '-time-' + repr(t) + '-depth-' + repr(d) + '-face-' + repr(f) + '.raw'
         with open(output, 'w+b') as g:            
           if f <= 2:
             g.write(np_array_le)    
           else:
-            g.write(np.rot90(np.reshape(np_array_le, (dfy[f], dfx[f]))))
+            g.write(np.rot90(np_array_le))
           
