@@ -26,10 +26,10 @@ for t in range(0, ntimes):
     for d in range(0, ndepths):
       skip_bytes = d * nx * ny * 13 * s # skip to the depth
       for f in range(0, nfaces):
-        skip_bytes += dfx[f] * dfy[f] * s # skip to the face
         face_bytes = s * dfx[f] * dfy[f]
         F.seek(skip_bytes)
         buf = F.read(face_bytes)
+        skip_bytes += dfx[f] * dfy[f] * s # skip to the face
         dt = np.dtype('>f')
         np_array_be = np.frombuffer(buf, dtype = dt)
         np_array_le = np_array_be.byteswap()

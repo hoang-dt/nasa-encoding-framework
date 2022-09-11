@@ -21,7 +21,7 @@ output = sys.argv[3]
 with open(output, 'w+b') as g:
   skip_bytes = 0 
   for f in range(0, face):
-    skip_bytes += dfx[f] * dfy[f] * s                              
+    skip_bytes += dfx[f] * dfy[f] * s
   face_bytes = s * dfx[face] * dfy[face]   
   with open(files[time], "r+b") as f:
     mm = mmap.mmap(f.fileno(), 0)
