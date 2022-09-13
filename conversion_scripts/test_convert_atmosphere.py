@@ -11,8 +11,31 @@ import sys
 from time import sleep
 #from config import n_faces, n_depths, nx, ny, type_bytes, dfx, dfy
 import config
-from convert_to_idx2 import *
+# from convert_to_idx2 import *
 from multiprocessing import Process
+# idx2_outout='/usr/sci/cedmav/files/idx2_files/'
+def convert_to_idx2(raw_file, dataset_name, long_field_name, dimensions):
+  lock_file = raw_file + '.lock'
+  with open(lock_file, "w") as l:
+    l.write('hello'\n)
+  command = (
+    config.idx2_exe + ' --encode '
+    + ' --input ' + raw_file + ' '
+    + ' --name ' + dataset_name + ' '
+    + ' --field ' + long_field_name + ' '
+    + ' --type float32 '
+    + ' --dims ' + repr(dimensions[0]) + ' ' + repr(dimensions[1]) + ' ' + repr(dimensions[2]) + ' '
+    + ' --accuracy 1e-7 '
+    + ' --num_levels 4 ' # TODO: move to input param
+    + ' --brick_size 32 32 32 ' # TODO: move to input param #aashish: maybe either do 32 32 32 or 64 64 64
+    + ' --bricks_per_tile 512 '
+    + ' --tiles_per_file 4096 '
+    + ' --files_per_dir 4096 '
+     + ' --out_dir ' + '/usr/sci/cedmav/files/idx2_files/'
+    )
+  print(command)
+  os.system(command)
+  os.remove(lock_file)
 
 
 # Form the name of the .raw output file from a list of parameters
@@ -24,7 +47,7 @@ def form_output_file_name(field_name, time_from, time_to, face, depth):
     + '-time-' + repr(time_from) + '-' + repr(time_to))
   #dimensions = (dfx[face], dfy[face], time_to-time_from)
   dimensions=(1440,1440,1024)  
-  output_file = ('/hdscratch/merged_raw_1/'+'lev_'+repr(depth)+'_face_'+repr(face))
+  output_file = ('/usr/sci/cedmav/files/raw_files/'+'lev_'+repr(depth)+'_face_'+repr(face))
   return output_file, long_field_name, dimensions
 
 
@@ -63,7 +86,7 @@ if __name__ == '__main__':
   # For each time block, we first write a raw file, then convert it to idx2
   for t in range(0, n_time_steps, time_block):
     t_from = t
-    n_depths=1
+    n_depths=52
     n_faces=6
     t_to = min(t + time_block, n_time_steps)
     #print(t, time_block, t_to)
@@ -81,8 +104,8 @@ if __name__ == '__main__':
         if os.path.exists(dir_name):
           shutil.rmtree(dataset_name + '/' + output_file) # remove the dir first to avoid writing a corrupted file
         #extract_face_across_time(files, t_from, t_to, f, d, output_file + '.raw')
-        #while len(glob.glob1('./', '*.raw')) >= 8: # do not spawn more than 8 processes
-         # continue
-          #sleep(1)
+        while len(glob.glob1('./', '*.lock')) >= 8: # do not spawn more than 8 processes
+          continue
+          sleep(1)
         p = Process(target = convert_to_idx2, args = (output_file + '.raw', dataset_name, long_field_name, dimensions))
         p.start()
