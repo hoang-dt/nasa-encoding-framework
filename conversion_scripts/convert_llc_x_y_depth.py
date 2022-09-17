@@ -58,7 +58,7 @@ def convert_to_idx2(raw_file, dataset_name, long_field_name, dimensions):
 # Form the name of the .raw output file from a list of parameters
 def form_output_file_name(field_name, time):
   long_field_name = field_name + '-time-' + repr(time)
-  dimensions = (dfx[0] * 4, dfy[0] * 3, n_depths)
+  dimensions = (nx * 4, nx * 3, n_depths)
   output_file = long_field_name
   return output_file, long_field_name, dimensions
 
