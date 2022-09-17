@@ -87,7 +87,8 @@ if __name__ == '__main__':
     print(output_file)
 
     # put all the faces (except face 2) and all the depths into one 3D volume
-    with open(files_u[t], "rb") as fu, open(files_v[t], "rb") as fv, open(out_dir + '/' + output_file, 'wb') as fout:
+    raw_name = out_dir + '/' + output_file + '.raw'
+    with open(files_u[t], "rb") as fu, open(files_v[t], "rb") as fv, open(raw_name, 'wb') as fout:
       for d in range(0, n_depths):
         skip_bytes = d * nx * ny * n_square_faces * type_bytes
         for f in range(0, n_faces):
@@ -107,9 +108,9 @@ if __name__ == '__main__':
           if f > 2:
             array_le = np.rot90(array_le)
           array_le = np.ascontiguousarray(array_le, dtype=np.float32)
-          print(array_le.size * array_le.itemsize)
+          #print(array_le.size * array_le.itemsize)
           fout.write(array_le)
           skip_bytes += dfx[f] * dfy[f] * type_bytes
 
-    p = Process(target = convert_to_idx2, args = (out_dir + '/' + output_file + '.raw', dataset_name, long_field_name, dimensions))
+    p = Process(target = convert_to_idx2, args = (raw_name, dataset_name, long_field_name, dimensions))
     p.start()
