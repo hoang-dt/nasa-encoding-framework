@@ -107,7 +107,7 @@ if __name__ == '__main__':
           array_le = array_le.reshape(dfy[f], dfx[f])
           if f > 2:
             array_le = np.rot90(array_le)
-          array_le = np.ascontiguousarray(array_le, dtype=np.float32)
+          array_le = np.ascontiguousarray(array_le)
           #print(array_le.size * array_le.itemsize)
           fout.write(array_le)
           skip_bytes += dfx[f] * dfy[f] * type_bytes
