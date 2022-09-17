@@ -32,7 +32,9 @@ file_v         = 'files-v.txt'
 dataset_name   = 'llc2160_x_y_depth'
 field_name     = 'u'
 idx2_exe       = '/home1/dthoang/idx2/build/Source/Applications/idx2App'
+idx2_exe       = 'F:/Workspace/idx2/build/Source/Applications/Release/idx2App.exe'
 out_dir        = '/nobackupp19/vpascucc/converted_files'
+out_dir        = 'J:/nasa'
 
 #from config import n_faces, n_depths, nx, ny, type_bytes, dfx, dfy
 
