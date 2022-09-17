@@ -38,7 +38,7 @@ out_dir        = '/nobackupp19/vpascucc/converted_files/'
 
 def convert_to_idx2(raw_file, dataset_name, long_field_name, dimensions):
   command = (
-    config.idx2_exe + ' --encode '
+    idx2_exe + ' --encode '
     + ' --input ' + raw_file + ' '
     + ' --name ' + dataset_name + ' '
     + ' --field ' + long_field_name + ' '
@@ -50,7 +50,7 @@ def convert_to_idx2(raw_file, dataset_name, long_field_name, dimensions):
     + ' --bricks_per_tile 8 '
     + ' --tiles_per_file 512 '
     + ' --files_per_dir 512 '
-    + ' --out_dir ' + config.out_dir)
+    + ' --out_dir ' + out_dir)
   print(command)
   os.system(command)
   os.remove(raw_file)
@@ -58,7 +58,7 @@ def convert_to_idx2(raw_file, dataset_name, long_field_name, dimensions):
 # Form the name of the .raw output file from a list of parameters
 def form_output_file_name(field_name, time):
   long_field_name = field_name + '-time-' + repr(time)
-  dimensions = (config.dfx[0] * 4, config.dfy[0] * 3, config.n_depths)
+  dimensions = (dfx[0] * 4, dfy[0] * 3, n_depths)
   output_file = long_field_name
   return output_file, long_field_name, dimensions
 
