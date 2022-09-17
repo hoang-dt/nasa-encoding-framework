@@ -32,7 +32,7 @@ file_v         = 'files-v.txt'
 dataset_name   = 'llc2160_bpt_8'
 field_name     = 'u'
 idx2_exe       = '/home1/dthoang/idx2/build/Source/Applications/idx2App'
-out_dir        = '/nobackupp19/vpascucc/converted_files/'
+out_dir        = '/nobackupp19/vpascucc/converted_files'
 
 #from config import n_faces, n_depths, nx, ny, type_bytes, dfx, dfy
 
@@ -107,6 +107,7 @@ if __name__ == '__main__':
           if f > 2:
             array_le = np.rot90(array_le)
           array_le = np.ascontiguousarray(array_le, dtype=np.float32)
+          print(array_le.size * array_le.itemsize)
           fout.write(array_le)
           skip_bytes += dfx[f] * dfy[f] * type_bytes
 
