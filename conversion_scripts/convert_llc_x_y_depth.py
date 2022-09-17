@@ -87,7 +87,7 @@ if __name__ == '__main__':
     print(output_file)
 
     # put all the faces (except face 2) and all the depths into one 3D volume
-    with open(files_u[t], "rb") as fu, open(files_v[t], "rb") as fv, open(output_file, 'wb') as fout:
+    with open(files_u[t], "rb") as fu, open(files_v[t], "rb") as fv, open(out_dir + '/' + output_file, 'wb') as fout:
       for d in range(0, n_depths):
         skip_bytes = d * nx * ny * n_square_faces * type_bytes
         for f in range(0, n_faces):
