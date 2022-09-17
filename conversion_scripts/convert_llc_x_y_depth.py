@@ -94,7 +94,7 @@ if __name__ == '__main__':
           if f == 2:
             skip_bytes += dfx[f] * dfy[f] * type_bytes
             continue
-          face_bytes = type_bytes * dfx[face] * dfy[face]
+          face_bytes = type_bytes * dfx[f] * dfy[f]
           if f < 2:
             fu.seek(skip_bytes)
           else:
