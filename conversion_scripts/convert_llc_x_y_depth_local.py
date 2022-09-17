@@ -29,7 +29,7 @@ dfx            = [nx  , nx  , nx, nx*3, nx*3] # x dimension of the 5 faces
 dfy            = [ny*3, ny*3, ny, ny  , ny  ] # y dimension of the 5 faces
 file_u         = 'files-u.txt'
 file_v         = 'files-v.txt'
-dataset_name   = 'llc2160_x_y_depth'
+dataset_name   = 'llc2160_x_y_depth_bpt_64'
 field_name     = 'u'
 idx2_exe       = '/home1/dthoang/idx2/build/Source/Applications/idx2App'
 idx2_exe       = 'F:/Workspace/idx2/build/Source/Applications/Release/idx2App.exe'
@@ -49,7 +49,7 @@ def convert_to_idx2(raw_file, dataset_name, long_field_name, dimensions):
     + ' --accuracy 1e-7 '
     + ' --num_levels 4 ' # TODO: move to input param
     + ' --brick_size 32 32 32 ' # TODO: move to input param #aashish: maybe either do 32 32 32 or 64 64 64
-    + ' --bricks_per_tile 512 '
+    + ' --bricks_per_tile 64 '
     + ' --tiles_per_file 512 '
     + ' --files_per_dir 512 '
     + ' --out_dir ' + out_dir)
@@ -89,8 +89,7 @@ if __name__ == '__main__':
     print(output_file)
 
     # put all the faces (except face 2) and all the depths into one 3D volume
-    iteration = 0
-    raw_name = out_dir + '/' + output_file + '.raw'
+    raw_name = out_dir + '/' + dataset_name + '-' + output_file + '.raw'
     with open(files_u[t], "rb") as fu, open(files_v[t], "rb") as fv, open(raw_name, 'wb') as fout:
       for d in range(0, n_depths):
         skip_bytes = d * nx * ny * n_square_faces * type_bytes
@@ -111,12 +110,8 @@ if __name__ == '__main__':
           if f > 2:
             array_le = np.rot90(array_le)
           array_le = np.ascontiguousarray(array_le)
-          if iteration % 10 == 0:
-            array_le.tofile(repr(iteration) + '.raw')
           #print(array_le.size * array_le.itemsize)
           fout.write(array_le)
           skip_bytes += dfx[f] * dfy[f] * type_bytes
-          iteration += 1
 
-    #p = Process(target = convert_to_idx2, args = (raw_name, dataset_name, long_field_name, dimensions))
-    #p.start()
+    convert_to_idx2(raw_name, dataset_name, long_field_name, dimensions)
