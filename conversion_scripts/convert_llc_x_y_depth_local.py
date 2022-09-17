@@ -90,9 +90,12 @@ if __name__ == '__main__':
 
     # put all the faces (except face 2) and all the depths into one 3D volume
     raw_name = out_dir + '/' + dataset_name + '-' + output_file + '.raw'
+    iteration = 0
+    slice = np.empty((ny * 3, nx * 4), dtype='<f')
     with open(files_u[t], "rb") as fu, open(files_v[t], "rb") as fv, open(raw_name, 'wb') as fout:
       for d in range(0, n_depths):
         skip_bytes = d * nx * ny * n_square_faces * type_bytes
+        x_from = 0
         for f in range(0, n_faces):
           if f == 2:
             skip_bytes += dfx[f] * dfy[f] * type_bytes
@@ -104,14 +107,21 @@ if __name__ == '__main__':
             fv.seek(skip_bytes)
           buf = fu.read(face_bytes) if f <= 2 else fv.read(face_bytes)
           dt = np.dtype('>f')
-          array_be = np.frombuffer(buf, dtype=dt)
-          array_le = array_be.byteswap()
-          array_le = array_le.reshape(dfy[f], dfx[f])
-          if f > 2:
-            array_le = np.rot90(array_le)
-          array_le = np.ascontiguousarray(array_le)
-          #print(array_le.size * array_le.itemsize)
-          fout.write(array_le)
-          skip_bytes += dfx[f] * dfy[f] * type_bytes
+          array = np.frombuffer(buf, dtype=dt)
+          #array_le = array_be.byteswap()
+          array = array.reshape(dfy[f], dfx[f])
+          if f < 2:
+            slice[:, x_from:x_from+nx] = array
+          else:
+            slice[:, x_from:x_from+nx] = np.rot90(array)
+          # copy data from a face to a slice
 
+          #array_le = np.ascontiguousarray(array_le)
+          #print(array_le.size * array_le.itemsize)
+          skip_bytes += dfx[f] * dfy[f] * type_bytes
+          x_from += nx
+        fout.write(slice)
+        if iteration % 10 == 0:
+          slice.tofile(repr(iteration) + '.raw')
+        iteration += 1
     convert_to_idx2(raw_name, dataset_name, long_field_name, dimensions)
