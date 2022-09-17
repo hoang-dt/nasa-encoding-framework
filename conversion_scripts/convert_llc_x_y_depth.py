@@ -94,8 +94,11 @@ if __name__ == '__main__':
           if f == 2:
             skip_bytes += dfx[f] * dfy[f] * type_bytes
             continue
-          f.seek(skip_bytes)
           face_bytes = type_bytes * dfx[face] * dfy[face]
+          if f < 2:
+            fu.seek(skip_bytes)
+          else:
+            fv.seek(skip_bytes)
           buf = fu.read(face_bytes) if f <= 2 else fv.read(face_bytes)
           dt = np.dtype('>f')
           array_be = np.frombuffer(buf, dtype=dt)
