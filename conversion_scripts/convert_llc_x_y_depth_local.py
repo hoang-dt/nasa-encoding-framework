@@ -90,7 +90,6 @@ if __name__ == '__main__':
 
     # put all the faces (except face 2) and all the depths into one 3D volume
     raw_name = out_dir + '/' + dataset_name + '-' + output_file + '.raw'
-    iteration = 0
     slice = np.empty((ny * 3, nx * 4), dtype='<f')
     with open(files_u[t], "rb") as fu, open(files_v[t], "rb") as fv, open(raw_name, 'wb') as fout:
       for d in range(0, n_depths):
@@ -121,7 +120,4 @@ if __name__ == '__main__':
           skip_bytes += dfx[f] * dfy[f] * type_bytes
           x_from += nx
         fout.write(slice)
-        if iteration % 10 == 0:
-          slice.tofile(repr(iteration) + '.raw')
-        iteration += 1
     convert_to_idx2(raw_name, dataset_name, long_field_name, dimensions)
