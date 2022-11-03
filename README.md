@@ -1,0 +1,7 @@
+- For notebooks and OpenViSUS scene files, see [Notebooks and scene files](notebooks-and-scenes.md) and the [notebooks](https://github.com/hoang-dt/nasa-encoding-framework/tree/main/notebooks) directory.
+- For scripts that perform data conversion to idx2 format, see the [conversion_scripts](https://github.com/hoang-dt/nasa-encoding-framework/tree/main/conversion_scripts).
+- For data conversion instructions, see [Data conversion](conversion.md).
+- For running Jupyter notebooks, see [Jupyter notebooks](jupyter.md).
+- For transferring data out of NAS, see [Data transfer](data-transfer.md).
+- For written reports and presentations, see [Reports and presentations](reports.md).
+- For how to use idx2's C++ API to query data, see idx2-test directory (NOTE: not quite complete).
