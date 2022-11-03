@@ -1,4 +1,6 @@
-See also the [reports](https://github.com/hoang-dt/nasa-encoding-framework/tree/main/reports directory
+See also the [reports](https://github.com/hoang-dt/nasa-encoding-framework/tree/main/reports) directory.
+- year one presentation
+https://docs.google.com/presentation/d/1HH3kKVOdb9ZRmTR_dyPrNdz4m49CVrAX/edit?usp=share_link&ouid=101433389425792741519&rtpof=true&sd=true
 - proposal for year one
 https://www.overleaf.com/project/60e1bd12e364c9aaea2feca3
 - year one report

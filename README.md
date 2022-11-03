@@ -7,3 +7,6 @@
 - For written reports and presentations, see [Reports and presentations](reports.md) and the [reports](https://github.com/hoang-dt/nasa-encoding-framework/tree/main/reports) directory.
 - Four references and resources, see the [resources](https://github.com/hoang-dt/nasa-encoding-framework/tree/main/resources) directory.
 - For how to use idx2's C++ API to query data, see [idx2-test](https://github.com/hoang-dt/nasa-encoding-framework/tree/main/idx2-test) directory (NOTE: not quite complete).
+
+We also have a shared repo here with assorted files
+https://drive.google.com/drive/folders/1Mr02sATa68QzNkUJpnFatnd3hBn140yV?usp=share_link
