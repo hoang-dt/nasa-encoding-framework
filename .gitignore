@@ -1,1 +1,4 @@
-build
+idx2-test/build
+idx2-test/build-linux
+.ipynb_checkpoints
+visus-cache

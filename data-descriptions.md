@@ -23,6 +23,17 @@ I believe that if you want 64 timesteps of llc4320, you’ll want to request 103
 
 ## Converted data on NAS
 Aashish: please fill in here
+# IDX data
+
+# IDX2 data
+- LLC2160 10000 time steps without time compression
+/nobackupp19/vpascucc/converted_files/vpascucc/llc2160_x_y_depth
+
+- LLC2160 1024 time steps with time compression
+/nobackupp19/vpascucc/converted_files/vpascucc/llc2160
+
+- LLC4320 in IDX2 format on CEDMAV (depth 0, separate faces, 64 time steps with time compression)
+/usr/sci/cedmav/hello/llc4320
 
 # Data locations on SCI CEDMAV/Atlantis
 ## Raw data on CEDMAV
