@@ -68,6 +68,7 @@ I believe that if you want 64 timesteps of llc4320, you’ll want to request 103
 https://atlantis.sci.utah.edu/mod_visus?dataset=nasa-llc-2160 (dimensions: 8640 * 6480 * 90 depth * 1 time step)
 https://atlantis.sci.utah.edu/mod_visus?dataset=nasa-llc-4320 (dimensions: 17280 * 12960 * 90 depth * 1 time step)
 https://atlantis.sci.utah.edu/mod_visus?dataset=nasa-llc-4320-64 (dimensions: 17280 * 12960 * 1 depth * 64 time step)
+-Atmospheric data in IDX  format 
 http://atlantis.sci.utah.edu/mod_visus?dataset=nasa-DYAMOND-atmospheric-face_1_depth_52_time_1024 (change face value as required: face_2_, face_3_,...)
 
 - LLC4320 in IDX format on CEDMAV (depth 0 only, 64 time steps)
