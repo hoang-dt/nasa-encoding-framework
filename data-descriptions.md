@@ -29,6 +29,8 @@ I believe that if you want 64 timesteps of llc4320, you’ll want to request 103
 - Ocean data(IDX2): 
 /nobackupp19/vpascucc/converted_files
 
+- The IDX files mentioned above are in Analysis-Ready, Cloud Optimized (ARCO) formats. The ocean dataset is compressed to ~82TB while converting to IDX. The original raw files for ocean data are over 400TB.
+
 # IDX data
 
 - Atmosphere data 10269 timesteps: 
