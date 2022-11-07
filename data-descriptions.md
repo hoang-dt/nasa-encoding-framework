@@ -52,7 +52,7 @@ I believe that if you want 64 timesteps of llc4320, you’ll want to request 103
 
 ## Idx data 
 - Atmosphere data: s3://utah/nasa/dyamond/idx_arco/  endpoint_url: https://maritime.sealstorage.io/api/v0/s3
-- Ocean data: Coming soon... 
+- Ocean data: s3://utah/nasa/dyamond/mit_output/ocean_data endpoint_url: https://maritime.sealstorage.io/api/v0/s3
 
 # Data locations on SCI CEDMAV/Atlantis
 ## Raw data on CEDMAV
