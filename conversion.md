@@ -1,8 +1,10 @@
 # Convert atmosphere simulation data from raw to IDX
-Aashish: please fill in here
+
+See the notebook to convert netcdf files to idx:  https://github.com/hoang-dt/nasa-encoding-framework/blob/main/notebooks/testing_atmosphere_idx_conversion.ipynb We have created an individual idx file for each face, and wrote the values to them. This code can be further optimized.
 
 # Convert ocean simulation data from raw to IDX
-Aashish: please fill in here
+See the script https://github.com/hoang-dt/nasa-encoding-framework/blob/main/conversion_scripts/convert_ocean_to_idx.py for how to extract each depths and faces properly, and write them all together to a single idx file.
+
 
 # Convert ocean simulation data from raw to IDX2
 

@@ -1,5 +1,5 @@
 # Data locations on NAS
-Aashish: please fill in here
+
 ## Raw data on NAS
 - Atmospheric data:
 /nobackupp17/dmenemen/DYAMOND/c1440_llc2160/holding
@@ -34,8 +34,21 @@ I tried the following and it worked:
 ```
 
 ## Converted data on NAS
-Aashish: please fill in here
+- Atmosphere data(IDX files): 
+/nobackupp19/vpascucc/IDX1-files/arco_compressed/atmospheric_data
+- Ocean data(IDX files): 
+/nobackupp19/vpascucc/IDX1-files/mit_output/ocean_data
+- Ocean data(IDX2): 
+/nobackupp19/vpascucc/converted_files
+
+- The IDX files mentioned above are in Analysis-Ready, Cloud Optimized (ARCO) formats. The ocean dataset is compressed to ~82TB while converting to IDX. The original raw files for ocean data are over 400TB.
+
 # IDX data
+
+- Atmosphere data 10269 timesteps: 
+/nobackupp19/vpascucc/IDX1-files/arco_compressed/atmospheric_data
+- Ocean data 10367 timesteps: 
+/nobackupp19/vpascucc/IDX1-files/mit_output/ocean_data
 
 # IDX2 data
 - LLC2160 10000 time steps without time compression
@@ -46,6 +59,14 @@ Aashish: please fill in here
 
 - LLC4320 in IDX2 format on CEDMAV (depth 0, separate faces, 64 time steps with time compression)
 /usr/sci/cedmav/hello/llc4320
+
+# Data location in Sealstorage: 
+## Raw data
+-Atmospheric data: s3://utah/nasa/dyamond/netcdf/  endpoint_url: https://maritime.sealstorage.io/api/v0/s3
+
+## Idx data 
+- Atmosphere data: s3://utah/nasa/dyamond/idx_arco/  endpoint_url: https://maritime.sealstorage.io/api/v0/s3
+- Ocean data: s3://utah/nasa/dyamond/mit_output/ocean_data endpoint_url: https://maritime.sealstorage.io/api/v0/s3
 
 # Data locations on SCI CEDMAV/Atlantis
 ## Raw data on CEDMAV
@@ -58,9 +79,11 @@ Aashish: please fill in here
 ## Converted data on CEDMAV
 ### IDX data
 - Ocean data in IDX format on Atlantis
-https://atlantis.sci.utah.edu/mod_visus?dataset==nasa-llc-2160 (dimensions: 8640 * 6480 * 90 depth * 1 time step)
-https://atlantis.sci.utah.edu/mod_visus?dataset==nasa-llc-4320 (dimensions: 17280 * 12960 * 90 depth * 1 time step)
-https://atlantis.sci.utah.edu/mod_visus?dataset==nasa-llc-4320-64 (dimensions: 17280 * 12960 * 1 depth * 64 time step)
+https://atlantis.sci.utah.edu/mod_visus?dataset=nasa-llc-2160 (dimensions: 8640 * 6480 * 90 depth * 1 time step)
+https://atlantis.sci.utah.edu/mod_visus?dataset=nasa-llc-4320 (dimensions: 17280 * 12960 * 90 depth * 1 time step)
+https://atlantis.sci.utah.edu/mod_visus?dataset=nasa-llc-4320-64 (dimensions: 17280 * 12960 * 1 depth * 64 time step)
+-Atmospheric data in IDX  format 
+http://atlantis.sci.utah.edu/mod_visus?dataset=nasa-DYAMOND-atmospheric-face_1_depth_52_time_1024 (change face value as required: face_2_, face_3_,...)
 
 - LLC4320 in IDX format on CEDMAV (depth 0 only, 64 time steps)
 /usr/sci/cedmav/hello/llc4320_64_idx
