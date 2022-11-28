@@ -6,20 +6,32 @@ Aashish: please fill in here
 - Ocean data:
 /nobackupp17/dmenemen/DYAMOND/c1440_llc2160/mit_output/
 - LLC4320 data:
-I think that the best approach will be to retrieve that data using our current data extraction pipeline. You’ll have to write out the data files, but you’ll have the option to convert in batches and delete the completed timesteps.
+I think that the best approach will be to retrieve that data using our current data extraction pipeline.
+You’ll have to write out the data files, but you’ll have the option to convert in batches and delete the completed timesteps.
 On a Pleiades, see:
+```
 /home4/bcnelson/MITgcm/extract/latest/README.usage
 /home4/bcnelson/MITgcm/extract/latest/README.uncompress
+```
 for instruction and best practices for uncompressing the data back into full llc data files.
 Seems like note about striping at the bottom of README.uncompress applies.
 The general usage will be:
+```
 /home4/bcnelson/MITgcm/extract/latest/uncompress4320 timesteps fieldnames
+```
 Example:
+```
 /home4/bcnelson/MITgcm/extract/latest/uncompress4320 -L 1 10368-10432 U
+```
 One thing to note, for llc4320, the timestep labels increase by 144 for each timestep.
 This corresponds to a 25 second integration period, 144 periods/hour, they saved out data every hour.
 The llc2160 timetseps labels, on the other hand, increase by 80, corresponding to an integration period of 45 seconds.
 I believe that if you want 64 timesteps of llc4320, you’ll want to request 10368-19584 (i.e. 10368+144*64).
+It looks like timesteps begin at 10368 for llc4320.
+I tried the following and it worked:
+```
+/home4/bcnelson/MITgcm/extract/latest/uncompress4320 -L 1 10368-10432 U
+```
 
 ## Converted data on NAS
 Aashish: please fill in here

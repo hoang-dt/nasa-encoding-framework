@@ -97,3 +97,9 @@ https://data.nas.nasa.gov/viz/vizdata/nmccurdy/DYAMOND_c1440_llc2160/dimitris/U_
 
 If you’d like to start looking through it to see how we can go about incorporating the framework, vs.cxx draws the interface and localcut.cxx generates the slice of data.
 We’ll likely build more interfaces using this kind of setup, so it would be great to figure out how to call the framework from it. We also have versions that employ zmq to distribute slicing across nodes.
+
+## Email 6
+Since analysis is rarely done on a single timestep, it would be great to show animation wherever possible:
+-in the llc2160 jupyter notebook, if we could show the 4 faces, have a slider moving around in depth, as we currently have, but have that looping through the timesteps (e.g. 1024), I think that would be a big win. I think I’m understanding correctly that this is possible – please correct me if I am wrong, and I will stop bringing it up. If we could go a step further, and also (separately) show the 24hr running mean (sliding window in time), I think that would be awesome. I can give more details about this if needed.
+-the same goes for vertical slicing (move around in XY, looping through time), but I understand that this might require running across multiple nodes, so I don’t think we should sink our time in this.
+-for the OpenViSUS viewer for llc4320, again, if we could show moving around in the 3D data and animating over time, this would be very appealing to the ECCO folks, whereas moving around in a single timestep is not really relevant to their analyses (even though it’s very impressive). I can help retrieve more timesteps if it would make this more possible. Please let me know! I think we could consider this crucial, if we can do it in the timeframe.
