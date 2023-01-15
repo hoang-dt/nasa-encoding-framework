@@ -36,6 +36,8 @@ I tried the following and it worked:
 ## Converted data on NAS
 - Atmosphere data(IDX files): 
 /nobackupp19/vpascucc/IDX1-files/arco_compressed/atmospheric_data
+- LLC4320 data(IDX files):
+/nobackupp19/vpascucc/llc4320_raw/llc4320_x_y_depth.idx
 - Ocean data(IDX files): 
 /nobackupp19/vpascucc/IDX1-files/mit_output/ocean_data
 - Ocean data(IDX2): 
