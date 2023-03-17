@@ -7,12 +7,14 @@ module load pkgsrc/2018Q3
 
 Next: 
 - Clone the idx2 from github: [sci-visus/idx2](https://github.com/sci-visus/idx2)
-- mkdir build && cd build
-- ccmake ..
-- c
-- c
-- g (generate)
-
+```
+mkdir build && cd build
+ccmake ..
+c
+c
+g (generate)
+make
+```
 The Idx2App will be inside ./Source/Application/Idx2App.
 
 # To run IDX2:
