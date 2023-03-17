@@ -31,8 +31,8 @@ file_u         = 'files-u.txt'
 file_v         = 'files-v.txt'
 dataset_name   = 'llc2160_x_y_depth'
 field_name     = 'u'
-idx2_exe       = '/home1/dthoang/idx2/build/Source/Applications/idx2App'
-out_dir        = '/nobackupp19/vpascucc/converted_files'
+idx2_exe       = '/u/apanta/idx2/build/Source/Applications/idx2App'
+out_dir        = '/u/apanta/test_idx2_data/'
 
 #from config import n_faces, n_depths, nx, ny, type_bytes, dfx, dfy
 
