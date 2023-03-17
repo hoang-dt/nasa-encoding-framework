@@ -18,6 +18,8 @@ make
 The Idx2App will be inside ./Source/Application/Idx2App.
 
 # To run IDX2:
+- go to the python script and update your Idx2App location by changing 'idx2_exe'
+- update where you want the output data by manipulating 'out_dir'
 For timesteps 0 to 10:
 - python3 convert_llc2160_x_y_depth.py 0 10
 
