@@ -43,6 +43,7 @@ def convert_to_idx2(raw_file, dataset_name, long_field_name, dimensions):
     + ' --name ' + dataset_name + ' '
     + ' --field ' + long_field_name + ' '
     + ' --type float32 '
+    + ' --num_levels 4'
     + ' --dims ' + repr(dimensions[0]) + ' ' + repr(dimensions[1]) + ' ' + repr(dimensions[2]) + ' '
     + ' --out_dir ' + out_dir)
   print(command)
